@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, integer, doublePrecision, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, timestamp, integer, doublePrecision, jsonb, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,7 @@ export const salesTable = pgTable("sales", {
   }>>(),
   totalAmount: doublePrecision("total_amount").notNull(),
   cashierId: integer("cashier_id").notNull(),
+  customerName: text("customer_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

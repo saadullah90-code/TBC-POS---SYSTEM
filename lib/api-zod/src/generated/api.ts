@@ -249,6 +249,7 @@ export const ListSalesResponseItem = zod.object({
   totalAmount: zod.number(),
   cashierId: zod.number(),
   cashierName: zod.string().nullish(),
+  customerName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListSalesResponse = zod.array(ListSalesResponseItem);
@@ -264,6 +265,7 @@ export const CreateSaleBody = zod.object({
     }),
   ),
   cashierId: zod.number(),
+  customerName: zod.string().nullish(),
 });
 
 /**
@@ -288,6 +290,7 @@ export const GetSaleResponse = zod.object({
   totalAmount: zod.number(),
   cashierId: zod.number(),
   cashierName: zod.string().nullish(),
+  customerName: zod.string().nullish(),
   createdAt: zod.string(),
 });
 

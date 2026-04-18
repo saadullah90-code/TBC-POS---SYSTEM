@@ -100,6 +100,10 @@ export default function Receipt() {
         <span>Cashier</span>
         <span>{sale.cashierName || `User #${sale.cashierId}`}</span>
       </div>
+      <div className="row small">
+        <span>Customer</span>
+        <span className="bold">{sale.customerName || "Walk-in"}</span>
+      </div>
 
       <div className="dashed" />
 

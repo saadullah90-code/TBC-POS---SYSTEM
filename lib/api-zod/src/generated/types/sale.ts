@@ -14,5 +14,7 @@ export interface Sale {
   cashierId: number;
   /** @nullable */
   cashierName?: string | null;
+  /** @nullable */
+  customerName?: string | null;
   createdAt: string;
 }

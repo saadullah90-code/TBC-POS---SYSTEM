@@ -701,6 +701,8 @@ components:
           type: integer
         cashierName:
           type: ["string", "null"]
+        customerName:
+          type: ["string", "null"]
         createdAt:
           type: string
       required:
@@ -727,6 +729,8 @@ components:
               - quantity
         cashierId:
           type: integer
+        customerName:
+          type: ["string", "null"]
       required:
         - items
         - cashierId

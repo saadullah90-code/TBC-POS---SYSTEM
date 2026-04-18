@@ -10,4 +10,6 @@ import type { CreateSaleBodyItemsItem } from "./createSaleBodyItemsItem";
 export interface CreateSaleBody {
   items: CreateSaleBodyItemsItem[];
   cashierId: number;
+  /** @nullable */
+  customerName?: string | null;
 }

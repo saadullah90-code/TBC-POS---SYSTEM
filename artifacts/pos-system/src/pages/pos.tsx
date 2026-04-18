@@ -14,6 +14,7 @@ import {
   CreditCard,
   Barcode,
   Loader2,
+  User,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function Pos() {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [activeBarcode, setActiveBarcode] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [customerName, setCustomerName] = useState("");
   const [lastReceipt, setLastReceipt] = useState<{ id: number; total: number } | null>(null);
 
   const createSale = useCreateSale();
@@ -155,7 +157,8 @@ export default function Pos() {
       {
         data: {
           items: cart.map(item => ({ productId: item.id, quantity: item.cartQuantity })),
-          cashierId: user.id
+          cashierId: user.id,
+          customerName: customerName.trim() || null,
         }
       },
       {
@@ -181,6 +184,7 @@ export default function Pos() {
             title: `Sale #${sale.id} completed`,
             description: `Total ${formatCurrency(total)} — printing receipt…`,
           });
+          setCustomerName("");
           setTimeout(() => scannerInputRef.current?.focus(), 100);
         },
         onError: (err: any) => {
@@ -249,6 +253,19 @@ export default function Pos() {
           <ShoppingCart className="h-5 w-5 mr-2 text-primary" />
           <h2 className="text-xl font-bold tracking-tight">Current Sale</h2>
           <Badge className="ml-auto bg-primary text-primary-foreground">{cart.length} items</Badge>
+        </div>
+
+        <div className="px-4 pt-4">
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-1.5">
+            <User className="h-3.5 w-3.5" /> Customer Name
+            <span className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground/70">(optional)</span>
+          </label>
+          <Input
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            placeholder="Walk-in customer"
+            className="h-10 bg-background"
+          />
         </div>
 
         <ScrollArea className="flex-1 p-4">

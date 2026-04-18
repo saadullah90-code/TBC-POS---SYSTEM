@@ -118,6 +118,8 @@ export interface Sale {
   cashierId: number;
   /** @nullable */
   cashierName?: string | null;
+  /** @nullable */
+  customerName?: string | null;
   createdAt: string;
 }
 
@@ -129,6 +131,8 @@ export type CreateSaleBodyItemsItem = {
 export interface CreateSaleBody {
   items: CreateSaleBodyItemsItem[];
   cashierId: number;
+  /** @nullable */
+  customerName?: string | null;
 }
 
 export interface DashboardSummary {

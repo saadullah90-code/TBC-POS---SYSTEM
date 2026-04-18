@@ -16,6 +16,7 @@ function formatSale(sale: typeof salesTable.$inferSelect, cashierName?: string |
     totalAmount: sale.totalAmount,
     cashierId: sale.cashierId,
     cashierName: cashierName ?? null,
+    customerName: sale.customerName ?? null,
     createdAt: sale.createdAt.toISOString(),
   };
 }
@@ -74,7 +75,7 @@ router.post("/sales", async (req, res): Promise<void> => {
     return;
   }
 
-  const { items, cashierId } = parsed.data;
+  const { items, cashierId, customerName } = parsed.data;
 
   const productIds = items.map((i) => i.productId);
   const { inArray } = await import("drizzle-orm");
@@ -127,7 +128,12 @@ router.post("/sales", async (req, res): Promise<void> => {
 
   const [sale] = await db
     .insert(salesTable)
-    .values({ items: saleItems, totalAmount, cashierId })
+    .values({
+      items: saleItems,
+      totalAmount,
+      cashierId,
+      customerName: customerName?.trim() ? customerName.trim() : null,
+    })
     .returning();
 
   const [cashier] = await db.select().from(usersTable).where(eq(usersTable.id, cashierId));

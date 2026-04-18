@@ -71,6 +71,7 @@ export default function Invoice() {
               <p className="flex justify-end gap-4"><span className="text-gray-500 font-medium">Date:</span> <span>{format(new Date(sale.createdAt), "MMM dd, yyyy")}</span></p>
               <p className="flex justify-end gap-4"><span className="text-gray-500 font-medium">Time:</span> <span>{format(new Date(sale.createdAt), "hh:mm a")}</span></p>
               <p className="flex justify-end gap-4"><span className="text-gray-500 font-medium">Cashier:</span> <span>{sale.cashierName || `User #${sale.cashierId}`}</span></p>
+              <p className="flex justify-end gap-4"><span className="text-gray-500 font-medium">Customer:</span> <span className="font-semibold">{sale.customerName || "Walk-in"}</span></p>
             </div>
           </div>
         </div>

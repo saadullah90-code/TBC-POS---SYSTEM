@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { printDocument } from "@/lib/print";
+import { ReceiptPrintDialog } from "@/components/receipt-print-dialog";
+import type { Sale } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -39,6 +41,7 @@ export default function Pos() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [lastReceipt, setLastReceipt] = useState<{ id: number; total: number } | null>(null);
+  const [receiptDialog, setReceiptDialog] = useState<{ sale: Sale; auto: boolean } | null>(null);
 
   const createSale = useCreateSale();
 
@@ -167,8 +170,9 @@ export default function Pos() {
           const total = sale.totalAmount;
           setCart([]);
           setLastReceipt({ id: sale.id, total });
-          // Print the receipt in-app via a hidden iframe — no new tab.
-          printDocument(`/receipt/${sale.id}`);
+          // Open our own custom in-app receipt window instantly using the
+          // sale data already returned — no iframe load, no API refetch.
+          setReceiptDialog({ sale, auto: true });
           toast({
             title: `Sale #${sale.id} completed`,
             description: `Total ${formatCurrency(total)} — printing receipt…`,
@@ -369,7 +373,14 @@ export default function Pos() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-xs text-white/70 hover:text-white"
-            onClick={() => printDocument(`/receipt/${lastReceipt.id}`)}
+            onClick={() => {
+              if (receiptDialog?.sale.id === lastReceipt.id) {
+                setReceiptDialog({ sale: receiptDialog.sale, auto: false });
+              } else {
+                // Fallback: fetch via the receipt page in a hidden iframe.
+                printDocument(`/receipt/${lastReceipt.id}`);
+              }
+            }}
           >
             Reprint
           </Button>
@@ -383,6 +394,13 @@ export default function Pos() {
           </Button>
         </div>
       )}
+
+      <ReceiptPrintDialog
+        sale={receiptDialog?.sale ?? null}
+        open={!!receiptDialog}
+        autoPrint={receiptDialog?.auto ?? false}
+        onClose={() => setReceiptDialog(null)}
+      />
     </div>
   );
 }

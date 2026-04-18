@@ -247,8 +247,10 @@
 }
 
 @media print {
+  @page { size: 80mm auto; margin: 0; }
+
   body {
-    background-color: white !important;
+    background: white !important;
     color: black !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -257,10 +259,27 @@
     box-shadow: none !important;
     text-shadow: none !important;
   }
-  .no-print {
-    display: none !important;
-  }
-  .print-only {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+
+  /*
+   * When the receipt dialog is open we want ONLY the slip on paper.
+   * `body.print-receipt-only` is toggled by <ReceiptPrintDialog/>. We hide
+   * everything except the slip, then unhide the slip and its ancestors.
+   */
+  body.print-receipt-only > *:not(.receipt-print-portal) { display: none !important; }
+  body.print-receipt-only .receipt-print-portal,
+  body.print-receipt-only .receipt-print-portal * { visibility: visible !important; }
+  body.print-receipt-only .receipt-print-portal {
+    position: static !important;
+    inset: auto !important;
+    background: white !important;
+    backdrop-filter: none !important;
     display: block !important;
+  }
+  body.print-receipt-only .receipt-print-portal .no-print { display: none !important; }
+  body.print-receipt-only .receipt-slip {
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 }

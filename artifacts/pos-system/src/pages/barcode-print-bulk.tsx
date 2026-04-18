@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useListProducts, Product } from "@workspace/api-client-react";
 import bwipjs from "bwip-js";
 import { Loader2 } from "lucide-react";
+import { isEmbedded, signalPrintReady } from "@/lib/print";
 
 function Label({ product }: { product: Product }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -64,6 +65,12 @@ export default function BarcodePrintBulk() {
   useEffect(() => {
     if (printed || !selected.length) return;
     setPrinted(true);
+
+    if (isEmbedded()) {
+      signalPrintReady();
+      return;
+    }
+
     const t = setTimeout(() => window.print(), 400);
     const onAfterPrint = () => setTimeout(() => window.close(), 200);
     window.addEventListener("afterprint", onAfterPrint);

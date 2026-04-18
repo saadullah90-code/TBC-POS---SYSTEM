@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { isEmbedded, signalPrintReady } from "@/lib/print";
 
 function formatPKR(amount: number) {
   return "Rs. " + Number(amount).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -15,20 +16,22 @@ export default function Receipt() {
   const printedRef = useRef(false);
 
   useEffect(() => {
-    if (sale && !printedRef.current) {
-      printedRef.current = true;
-      const t = setTimeout(() => {
-        window.print();
-      }, 250);
-      const onAfterPrint = () => {
-        setTimeout(() => window.close(), 200);
-      };
-      window.addEventListener("afterprint", onAfterPrint);
-      return () => {
-        clearTimeout(t);
-        window.removeEventListener("afterprint", onAfterPrint);
-      };
+    if (!sale || printedRef.current) return;
+    printedRef.current = true;
+
+    if (isEmbedded()) {
+      // Parent (printDocument helper) will trigger printing.
+      signalPrintReady();
+      return;
     }
+
+    const t = setTimeout(() => window.print(), 250);
+    const onAfterPrint = () => setTimeout(() => window.close(), 200);
+    window.addEventListener("afterprint", onAfterPrint);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", onAfterPrint);
+    };
   }, [sale]);
 
   if (isLoading) {

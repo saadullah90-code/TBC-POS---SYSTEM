@@ -59,6 +59,7 @@ import {
   Printer as PrinterIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { printDocument } from "@/lib/print";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -210,8 +211,7 @@ export default function Inventory() {
       return;
     }
     const ids = Array.from(selectedIds).join(",");
-    const url = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}`;
-    window.open(url, "_blank", "width=520,height=720");
+    printDocument(`/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}`);
   };
 
   const handleDelete = (id: number) => {
@@ -386,7 +386,7 @@ export default function Inventory() {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => window.open(`/inventory/barcode-print/${product.barcode}?title=${encodeURIComponent(product.title)}&price=${product.price}`, '_blank')}
+                          onClick={() => printDocument(`/inventory/barcode-print/${product.barcode}?title=${encodeURIComponent(product.title)}&price=${product.price}`)}
                           title="Print Barcode"
                         >
                           <Printer className="h-4 w-4" />

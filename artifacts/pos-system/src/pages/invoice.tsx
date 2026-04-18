@@ -3,19 +3,23 @@ import { useParams } from "wouter";
 import { format } from "date-fns";
 import { Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { isEmbedded, signalPrintReady } from "@/lib/print";
 
 export default function Invoice() {
   const params = useParams();
   const saleId = parseInt(params.id as string, 10);
   const { data: sale, isLoading, error } = useGetSale(saleId, { query: { enabled: !!saleId } });
 
+  const printedRef = useRef(false);
   useEffect(() => {
-    if (sale) {
-      setTimeout(() => {
-        window.print();
-      }, 500);
+    if (!sale || printedRef.current) return;
+    printedRef.current = true;
+    if (isEmbedded()) {
+      signalPrintReady();
+      return;
     }
+    setTimeout(() => window.print(), 500);
   }, [sale]);
 
   const formatCurrency = (amount: number) => {

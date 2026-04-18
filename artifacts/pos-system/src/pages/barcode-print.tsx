@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import bwipjs from "bwip-js";
+import { isEmbedded, signalPrintReady } from "@/lib/print";
 
 export default function BarcodePrint() {
   const params = useParams();
@@ -27,6 +28,11 @@ export default function BarcodePrint() {
       });
     } catch (e) {
       console.error("Error generating barcode:", e);
+      return;
+    }
+
+    if (isEmbedded()) {
+      signalPrintReady();
       return;
     }
 

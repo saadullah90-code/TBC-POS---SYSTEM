@@ -17,6 +17,7 @@ import {
   User,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { printDocument } from "@/lib/print";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -166,20 +167,8 @@ export default function Pos() {
           const total = sale.totalAmount;
           setCart([]);
           setLastReceipt({ id: sale.id, total });
-          // Auto-open receipt window — it will print itself and close.
-          const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-          const w = window.open(
-            `${base}/receipt/${sale.id}`,
-            "branx_receipt",
-            "width=420,height=720",
-          );
-          if (!w) {
-            toast({
-              variant: "destructive",
-              title: "Pop-up blocked",
-              description: "Allow pop-ups to auto-print receipts.",
-            });
-          }
+          // Print the receipt in-app via a hidden iframe — no new tab.
+          printDocument(`/receipt/${sale.id}`);
           toast({
             title: `Sale #${sale.id} completed`,
             description: `Total ${formatCurrency(total)} — printing receipt…`,
@@ -380,10 +369,7 @@ export default function Pos() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-xs text-white/70 hover:text-white"
-            onClick={() => {
-              const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-              window.open(`${base}/receipt/${lastReceipt.id}`, "_blank", "width=420,height=720");
-            }}
+            onClick={() => printDocument(`/receipt/${lastReceipt.id}`)}
           >
             Reprint
           </Button>
@@ -391,10 +377,7 @@ export default function Pos() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-xs text-white/70 hover:text-white"
-            onClick={() => {
-              const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-              window.open(`${base}/invoice/${lastReceipt.id}`, "_blank");
-            }}
+            onClick={() => printDocument(`/invoice/${lastReceipt.id}`)}
           >
             A4 Invoice
           </Button>

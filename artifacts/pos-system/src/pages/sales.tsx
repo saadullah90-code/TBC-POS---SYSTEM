@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Receipt, SearchX } from "lucide-react";
+import { printDocument } from "@/lib/print";
 
 export default function Sales() {
   const [period, setPeriod] = useState<ListSalesPeriod>("today");
@@ -36,7 +37,7 @@ export default function Sales() {
   };
 
   const handleRowClick = (id: number) => {
-    window.open(`/invoice/${id}`, '_blank');
+    printDocument(`/invoice/${id}`);
   };
 
   return (

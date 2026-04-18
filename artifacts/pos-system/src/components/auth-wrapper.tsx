@@ -9,21 +9,22 @@ interface AuthWrapperProps {
 }
 
 export function AuthWrapper({ children, allowedRoles }: AuthWrapperProps) {
-  const { data: user, isLoading, error } = useGetCurrentUser();
+  const { data: user, isLoading } = useGetCurrentUser();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (error || !user) {
-        setLocation("/login");
-      } else if (allowedRoles && !allowedRoles.includes(user.role)) {
-        if (user.role === "admin") setLocation("/dashboard");
-        else if (user.role === "cashier") setLocation("/pos");
-        else if (user.role === "inventory") setLocation("/inventory");
-        else setLocation("/");
-      }
+    if (isLoading) return;
+    if (!user) {
+      setLocation("/login");
+      return;
     }
-  }, [user, isLoading, error, setLocation, allowedRoles]);
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      if (user.role === "admin") setLocation("/dashboard");
+      else if (user.role === "cashier") setLocation("/pos");
+      else if (user.role === "inventory") setLocation("/inventory");
+      else setLocation("/");
+    }
+  }, [user, isLoading, setLocation]);
 
   if (isLoading) {
     return (
@@ -33,7 +34,7 @@ export function AuthWrapper({ children, allowedRoles }: AuthWrapperProps) {
     );
   }
 
-  if (error || !user) {
+  if (!user) {
     return null;
   }
 

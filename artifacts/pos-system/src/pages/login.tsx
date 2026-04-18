@@ -88,7 +88,9 @@ export default function Login() {
 
       <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm border-border shadow-2xl">
         <CardHeader className="space-y-3 pb-6 text-center">
-          <img src={branxLogo} alt="BranX" className="mx-auto h-16 w-auto object-contain mb-2" />
+          <div className="mx-auto inline-block rounded-2xl bg-black/80 px-5 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/5 backdrop-blur-sm mb-2">
+            <img src={branxLogo} alt="BranX" className="h-12 w-auto object-contain drop-shadow-[0_2px_6px_rgba(255,255,255,0.08)]" />
+          </div>
           <CardDescription className="text-muted-foreground">
             Sign in to access your dashboard
           </CardDescription>

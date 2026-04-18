@@ -43,8 +43,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="w-64 border-r border-border bg-card flex flex-col no-print">
-        <div className="h-16 flex items-center justify-center px-6 border-b border-border">
-          <img src={branxLogo} alt="BranX" className="h-10 w-auto object-contain" />
+        <div className="h-20 flex items-center justify-center px-6 border-b border-border">
+          <div className="rounded-2xl bg-black/80 px-4 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/5 backdrop-blur-sm">
+            <img src={branxLogo} alt="BranX" className="h-8 w-auto object-contain drop-shadow-[0_2px_6px_rgba(255,255,255,0.08)]" />
+          </div>
         </div>
         
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">

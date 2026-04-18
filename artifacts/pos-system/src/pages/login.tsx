@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import branxLogo from "@assets/BranX_1776511358704.png";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -87,10 +88,7 @@ export default function Login() {
 
       <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm border-border shadow-2xl">
         <CardHeader className="space-y-3 pb-6 text-center">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-2">
-            <Package className="w-6 h-6" />
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">NEXUS POS</CardTitle>
+          <img src={branxLogo} alt="BranX" className="mx-auto h-16 w-auto object-contain mb-2" />
           <CardDescription className="text-muted-foreground">
             Sign in to access your dashboard
           </CardDescription>

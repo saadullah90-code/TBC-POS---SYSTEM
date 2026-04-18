@@ -56,7 +56,7 @@ export default function Invoice() {
         {/* Header */}
         <div className="flex justify-between items-start border-b-2 border-gray-800 pb-6 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 tracking-tight">NEXUS POS</h1>
+            <h1 className="text-4xl font-black text-gray-900 tracking-tight">BranX<span className="text-red-500">*</span></h1>
             <p className="text-gray-600 mt-1">Retail Excellence</p>
             <div className="mt-4 text-sm text-gray-600">
               <p>123 Commerce St.</p>

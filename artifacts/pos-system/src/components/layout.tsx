@@ -11,6 +11,7 @@ import {
   MonitorPlay
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import branxLogo from "@assets/BranX_1776511358704.png";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetCurrentUser();
@@ -42,11 +43,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="w-64 border-r border-border bg-card flex flex-col no-print">
-        <div className="h-16 flex items-center px-6 border-b border-border">
-          <div className="font-bold text-xl text-primary flex items-center gap-2">
-            <Package className="h-6 w-6" />
-            <span>NEXUS POS</span>
-          </div>
+        <div className="h-16 flex items-center justify-center px-6 border-b border-border">
+          <img src={branxLogo} alt="BranX" className="h-10 w-auto object-contain" />
         </div>
         
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">

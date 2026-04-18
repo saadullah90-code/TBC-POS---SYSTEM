@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -60,7 +61,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -76,13 +76,8 @@ export default function Inventory() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
-  const [bulkText, setBulkText] = useState(
-    "Organic Apple | Apple | 250 | Fruits | 50\nWhole Milk 1L | Milk 1L | 320 | Dairy | 40",
-  );
-  const [bulkRunning, setBulkRunning] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
   const [copiesPerLabel, setCopiesPerLabel] = useState<number>(1);
+  const [, setLocation] = useLocation();
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -219,58 +214,6 @@ export default function Inventory() {
     window.open(url, "_blank", "width=520,height=720");
   };
 
-  const handleBulkAdd = async () => {
-    const lines = bulkText
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#"));
-
-    if (lines.length === 0) {
-      toast({ variant: "destructive", title: "No rows to import" });
-      return;
-    }
-
-    setBulkRunning(true);
-    setBulkResult(null);
-    let ok = 0;
-    let fail = 0;
-    const errors: string[] = [];
-
-    for (const [idx, line] of lines.entries()) {
-      const parts = line.split("|").map((s) => s.trim());
-      if (parts.length < 5) {
-        fail++;
-        errors.push(`Line ${idx + 1}: expected 5 fields separated by " | "`);
-        continue;
-      }
-      const [name, title, priceStr, category, stockStr] = parts;
-      const price = Number(priceStr);
-      const stock = parseInt(stockStr, 10);
-      const parsed = productSchema.safeParse({ name, title, price, category, stock });
-      if (!parsed.success) {
-        fail++;
-        errors.push(`Line ${idx + 1}: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
-        continue;
-      }
-      try {
-        await createProduct.mutateAsync({ data: parsed.data });
-        ok++;
-      } catch (e: any) {
-        fail++;
-        errors.push(`Line ${idx + 1}: ${e?.error || e?.message || "unknown error"}`);
-      }
-    }
-
-    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-    setBulkResult({ ok, fail, errors });
-    setBulkRunning(false);
-    toast({
-      title: `Bulk import done`,
-      description: `${ok} added, ${fail} failed`,
-      variant: fail > 0 ? "destructive" : "default",
-    });
-  };
-
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this product?")) {
       deleteProduct.mutate(
@@ -300,7 +243,7 @@ export default function Inventory() {
           <p className="text-muted-foreground mt-1">Manage products, stock levels, and barcodes.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => { setBulkResult(null); setIsBulkAddOpen(true); }} className="font-semibold">
+          <Button variant="outline" onClick={() => setLocation("/inventory/bulk-add")} className="font-semibold">
             <Upload className="mr-2 h-4 w-4" /> Bulk Add
           </Button>
           <Button onClick={handleOpenAdd} className="font-semibold">
@@ -576,58 +519,6 @@ export default function Inventory() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Add Dialog */}
-      <Dialog open={isBulkAddOpen} onOpenChange={(open) => { if (!bulkRunning) setIsBulkAddOpen(open); }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Bulk Add Products</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <p className="text-sm text-muted-foreground">
-              One product per line. Use <code className="px-1 bg-secondary rounded">|</code> to separate fields:
-              <br />
-              <code className="text-xs">name | short title | price | category | stock</code>
-            </p>
-            <Textarea
-              value={bulkText}
-              onChange={(e) => setBulkText(e.target.value)}
-              rows={10}
-              className="font-mono text-sm"
-              placeholder="Organic Apple | Apple | 250 | Fruits | 50"
-              disabled={bulkRunning}
-            />
-            {bulkResult && (
-              <div className="rounded-md border border-border p-3 bg-secondary/30 text-sm space-y-1">
-                <div>
-                  <span className="text-emerald-500 font-semibold">{bulkResult.ok} added</span>
-                  {bulkResult.fail > 0 && (
-                    <span className="ml-3 text-destructive font-semibold">{bulkResult.fail} failed</span>
-                  )}
-                </div>
-                {bulkResult.errors.length > 0 && (
-                  <ul className="list-disc list-inside text-xs text-destructive max-h-32 overflow-auto">
-                    {bulkResult.errors.map((e, i) => <li key={i}>{e}</li>)}
-                  </ul>
-                )}
-              </div>
-            )}
-            <div className="flex justify-between items-center pt-2">
-              <p className="text-xs text-muted-foreground">
-                Barcodes are auto-generated for every new product.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setIsBulkAddOpen(false)} disabled={bulkRunning}>
-                  Close
-                </Button>
-                <Button onClick={handleBulkAdd} disabled={bulkRunning}>
-                  {bulkRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Import
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

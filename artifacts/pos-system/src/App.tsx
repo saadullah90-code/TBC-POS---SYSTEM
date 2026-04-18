@@ -8,6 +8,7 @@ import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Pos from "./pages/pos";
 import Inventory from "./pages/inventory";
+import BulkAdd from "./pages/bulk-add";
 import Users from "./pages/users";
 import Sales from "./pages/sales";
 import Invoice from "./pages/invoice";
@@ -66,6 +67,14 @@ function Router() {
         <AuthWrapper allowedRoles={["admin", "inventory"]}>
           <Layout>
             <Inventory />
+          </Layout>
+        </AuthWrapper>
+      </Route>
+
+      <Route path="/inventory/bulk-add">
+        <AuthWrapper allowedRoles={["admin", "inventory"]}>
+          <Layout>
+            <BulkAdd />
           </Layout>
         </AuthWrapper>
       </Route>

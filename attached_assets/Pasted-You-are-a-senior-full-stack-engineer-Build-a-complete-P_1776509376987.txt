@@ -1,0 +1,211 @@
+You are a senior full-stack engineer. Build a complete Production-Ready Retail POS + Inventory + Barcode System.
+
+TECH STACK (IMPORTANT):
+- Frontend: Next.js (React framework)
+- Backend: Supabase (PostgreSQL + Auth + Storage)
+- Database: Supabase (NOT MongoDB)
+- Authentication: Supabase Auth (role-based)
+- Barcode generation: bwip-js or equivalent
+- Printing: window.print() with CSS print templates
+
+---
+
+PROJECT GOAL:
+A professional multi-role retail system for shop inventory, barcode printing, POS billing, and real-time sales tracking.
+
+---
+
+ROLES SYSTEM:
+
+1. ADMIN
+- Full system control
+- Dashboard analytics
+- View sales (daily/weekly/monthly filters)
+- Manage users (cashier, inventory staff)
+- Full product + sales access
+
+2. CASHIER
+- POS billing screen only
+- Scan barcode → add to cart
+- Complete sale
+- Print invoice
+- Cannot edit inventory
+
+3. INVENTORY STAFF
+- Can add/edit products only
+- Can generate and print barcodes
+- Cannot access sales dashboard
+
+---
+
+DATABASE (SUPABASE POSTGRES):
+
+Tables:
+
+Users:
+- id
+- name
+- email
+- role (admin/cashier/inventory)
+
+Products:
+- id
+- name
+- title
+- price
+- category
+- stock
+- barcode (unique)
+- created_at
+
+Sales:
+- id
+- items (json array)
+- total_amount
+- cashier_id
+- created_at
+
+---
+
+FEATURE 1: ADMIN DASHBOARD (NEXT.JS PAGE)
+
+Must include:
+- Total sales today
+- Weekly sales
+- Monthly sales
+- Total orders
+- Filters:
+  - Today
+  - Week
+  - Month
+- Recent sales list
+
+---
+
+FEATURE 2: INVENTORY MANAGEMENT
+
+Add Product Form:
+- Product Name
+- Title
+- Price
+- Category
+- Stock quantity
+- Auto barcode generation (VERY IMPORTANT)
+
+RULES:
+- When product is created:
+  - Generate unique barcode (e.g. PROD-1001)
+  - Save to Supabase Products table
+  - Barcode must be permanent and unique
+
+---
+
+FEATURE 3: BARCODE GENERATION + PRINT
+
+- Generate barcode image using bwip-js
+- Each product must have:
+  - barcode number
+  - barcode image
+- "Print Barcode" button:
+  - Open printable label (2x1 inch or 3x2 inch)
+  - Include:
+    - Product name
+    - Barcode image
+    - Barcode text
+- Use window.print()
+
+---
+
+FEATURE 4: POS / BILLING SYSTEM (CASHIER)
+
+- Barcode scanner input (auto focus always)
+- Scanner works like keyboard input
+- On scan:
+  - Fetch product from Supabase
+  - Add to cart
+- Cart system:
+  - Increase/decrease quantity
+  - Remove items
+- Total calculation
+- Complete Sale button:
+  - Save sale in Supabase
+  - Reduce stock in Products table
+  - Generate invoice
+- Print invoice (A4 format)
+
+IMPORTANT:
+- NEVER reduce stock on scan
+- Only reduce stock on "Complete Sale"
+
+---
+
+FEATURE 5: CUSTOMER DISPLAY SCREEN
+
+- Separate Next.js route
+- Live display:
+  - product name
+  - price
+  - quantity
+  - total bill
+- Updates in real time (Supabase realtime or polling)
+
+---
+
+BARCODE SYSTEM:
+
+- Auto generate unique barcode on product creation
+- Format: PROD-1000+ incremental OR UUID-based
+- Must never duplicate
+
+---
+
+PRINT SYSTEM:
+
+1. Barcode Sticker:
+- Small label format
+- Clean CSS layout
+- Include barcode image + text
+
+2. Invoice:
+- A4 printable bill
+- Professional layout
+- Items, qty, total, date
+
+---
+
+AUTHENTICATION:
+
+Use Supabase Auth:
+- Email/password login
+- Role-based access control
+- Protect routes based on role
+
+---
+
+API LOGIC:
+
+Use Supabase client:
+- Insert product
+- Fetch product by barcode
+- Update stock
+- Insert sales record
+
+---
+
+IMPORTANT RULES:
+- Clean Next.js folder structure
+- Fully working project
+- No pseudo code
+- Use environment variables (.env.local)
+- Secure Supabase keys
+- Stock never goes negative
+- Proper error handling
+
+---
+
+OUTPUT REQUIRED:
+- Full Next.js project
+- Supabase schema SQL
+- Setup instructions
+- Folder structure
+- How to run in Replit or local VS Code

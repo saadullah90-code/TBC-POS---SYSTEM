@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useListSales, ListSalesPeriod } from "@workspace/api-client-react";
+import { useListSales, ListSalesPeriod, Sale } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { useLocation } from "wouter";
+import { SaleDetailsDialog } from "@/components/sale-details-dialog";
 
 import {
   Table,
@@ -20,12 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Receipt, SearchX } from "lucide-react";
-import { printDocument } from "@/lib/print";
+import { Loader2, Eye, SearchX } from "lucide-react";
 
 export default function Sales() {
   const [period, setPeriod] = useState<ListSalesPeriod>("today");
-  const [, setLocation] = useLocation();
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
   const { data: sales, isLoading } = useListSales({ period });
 
@@ -36,16 +35,12 @@ export default function Sales() {
     }).format(amount);
   };
 
-  const handleRowClick = (id: number) => {
-    printDocument(`/invoice/${id}`);
-  };
-
   return (
     <div className="flex flex-col h-full bg-background p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Sales History</h2>
-          <p className="text-muted-foreground mt-1">View and reprint past transactions.</p>
+          <p className="text-muted-foreground mt-1">View past transactions.</p>
         </div>
         <Select value={period} onValueChange={(v) => setPeriod(v as ListSalesPeriod)}>
           <SelectTrigger className="w-[180px] bg-card font-medium">
@@ -98,7 +93,7 @@ export default function Sales() {
                   <TableRow 
                     key={sale.id} 
                     className="hover:bg-secondary/30 transition-colors cursor-pointer group"
-                    onClick={() => handleRowClick(sale.id)}
+                    onClick={() => setSelectedSale(sale)}
                   >
                     <TableCell className="font-mono text-muted-foreground">
                       #{sale.id.toString().padStart(6, '0')}
@@ -130,8 +125,9 @@ export default function Sales() {
                         variant="ghost" 
                         size="sm" 
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); setSelectedSale(sale); }}
                       >
-                        <Receipt className="h-4 w-4 mr-2" />
+                        <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
                     </TableCell>
@@ -142,6 +138,12 @@ export default function Sales() {
           </Table>
         </ScrollArea>
       </div>
+
+      <SaleDetailsDialog
+        sale={selectedSale}
+        open={!!selectedSale}
+        onClose={() => setSelectedSale(null)}
+      />
     </div>
   );
 }

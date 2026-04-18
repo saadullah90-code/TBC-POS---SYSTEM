@@ -13,6 +13,7 @@ import Sales from "./pages/sales";
 import Invoice from "./pages/invoice";
 import Receipt from "./pages/receipt";
 import BarcodePrint from "./pages/barcode-print";
+import BarcodePrintBulk from "./pages/barcode-print-bulk";
 import CustomerDisplay from "./pages/customer-display";
 
 import { AuthWrapper } from "./components/auth-wrapper";
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/invoice/:id" component={Invoice} />
       <Route path="/receipt/:id" component={Receipt} />
       <Route path="/inventory/barcode-print/:barcode" component={BarcodePrint} />
+      <Route path="/inventory/barcode-print-bulk" component={BarcodePrintBulk} />
       
       <Route path="/">
         <AuthWrapper>

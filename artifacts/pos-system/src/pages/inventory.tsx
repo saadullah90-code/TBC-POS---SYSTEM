@@ -46,17 +46,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Search, 
-  Plus, 
-  Printer, 
-  Edit, 
-  Trash2, 
+import {
+  Search,
+  Plus,
+  Printer,
+  Edit,
+  Trash2,
   Loader2,
-  PackageSearch
+  PackageSearch,
+  Upload,
+  Printer as PrinterIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -71,6 +75,14 @@ export default function Inventory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
+  const [bulkText, setBulkText] = useState(
+    "Organic Apple | Apple | 250 | Fruits | 50\nWhole Milk 1L | Milk 1L | 320 | Dairy | 40",
+  );
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
+  const [copiesPerLabel, setCopiesPerLabel] = useState<number>(1);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -182,6 +194,83 @@ export default function Inventory() {
     }
   };
 
+  const toggleSelect = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (!products) return;
+    if (checked) setSelectedIds(new Set(products.map((p) => p.id)));
+    else setSelectedIds(new Set());
+  };
+
+  const handlePrintSelected = () => {
+    if (selectedIds.size === 0) {
+      toast({ variant: "destructive", title: "No products selected" });
+      return;
+    }
+    const ids = Array.from(selectedIds).join(",");
+    const url = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}`;
+    window.open(url, "_blank", "width=520,height=720");
+  };
+
+  const handleBulkAdd = async () => {
+    const lines = bulkText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
+
+    if (lines.length === 0) {
+      toast({ variant: "destructive", title: "No rows to import" });
+      return;
+    }
+
+    setBulkRunning(true);
+    setBulkResult(null);
+    let ok = 0;
+    let fail = 0;
+    const errors: string[] = [];
+
+    for (const [idx, line] of lines.entries()) {
+      const parts = line.split("|").map((s) => s.trim());
+      if (parts.length < 5) {
+        fail++;
+        errors.push(`Line ${idx + 1}: expected 5 fields separated by " | "`);
+        continue;
+      }
+      const [name, title, priceStr, category, stockStr] = parts;
+      const price = Number(priceStr);
+      const stock = parseInt(stockStr, 10);
+      const parsed = productSchema.safeParse({ name, title, price, category, stock });
+      if (!parsed.success) {
+        fail++;
+        errors.push(`Line ${idx + 1}: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+        continue;
+      }
+      try {
+        await createProduct.mutateAsync({ data: parsed.data });
+        ok++;
+      } catch (e: any) {
+        fail++;
+        errors.push(`Line ${idx + 1}: ${e?.error || e?.message || "unknown error"}`);
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+    setBulkResult({ ok, fail, errors });
+    setBulkRunning(false);
+    toast({
+      title: `Bulk import done`,
+      description: `${ok} added, ${fail} failed`,
+      variant: fail > 0 ? "destructive" : "default",
+    });
+  };
+
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this product?")) {
       deleteProduct.mutate(
@@ -210,10 +299,43 @@ export default function Inventory() {
           <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
           <p className="text-muted-foreground mt-1">Manage products, stock levels, and barcodes.</p>
         </div>
-        <Button onClick={handleOpenAdd} className="font-semibold">
-          <Plus className="mr-2 h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setBulkResult(null); setIsBulkAddOpen(true); }} className="font-semibold">
+            <Upload className="mr-2 h-4 w-4" /> Bulk Add
+          </Button>
+          <Button onClick={handleOpenAdd} className="font-semibold">
+            <Plus className="mr-2 h-4 w-4" /> Add Product
+          </Button>
+        </div>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between bg-card p-3 rounded-lg border border-primary/40 shadow-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-semibold text-foreground">{selectedIds.size}</span>
+            <span className="text-muted-foreground">product{selectedIds.size === 1 ? "" : "s"} selected</span>
+            <Button variant="ghost" size="sm" className="h-7" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground flex items-center gap-2">
+              Copies per item
+              <Input
+                type="number"
+                min={1}
+                value={copiesPerLabel}
+                onChange={(e) => setCopiesPerLabel(Math.max(1, parseInt(e.target.value || "1", 10) || 1))}
+                className="h-8 w-20"
+              />
+            </label>
+            <Button onClick={handlePrintSelected} className="font-semibold">
+              <PrinterIcon className="mr-2 h-4 w-4" />
+              Print {selectedIds.size * copiesPerLabel} Label{selectedIds.size * copiesPerLabel === 1 ? "" : "s"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-lg border border-border shadow-sm">
         <div className="relative flex-1 max-w-sm">
@@ -245,6 +367,15 @@ export default function Inventory() {
           <Table>
             <TableHeader className="bg-secondary/50 sticky top-0 z-10">
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={
+                      !!products && products.length > 0 && products.every((p) => selectedIds.has(p.id))
+                    }
+                    onCheckedChange={(c) => toggleSelectAll(!!c)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Barcode</TableHead>
                 <TableHead>Category</TableHead>
@@ -256,7 +387,7 @@ export default function Inventory() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-64 text-center">
+                  <TableCell colSpan={7} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
                       Loading inventory...
@@ -265,7 +396,7 @@ export default function Inventory() {
                 </TableRow>
               ) : products?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-64 text-center">
+                  <TableCell colSpan={7} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <PackageSearch className="h-12 w-12 mb-4 opacity-20" />
                       <p className="text-lg font-medium">No products found</p>
@@ -275,7 +406,17 @@ export default function Inventory() {
                 </TableRow>
               ) : (
                 products?.map((product) => (
-                  <TableRow key={product.id} className="hover:bg-secondary/20 transition-colors">
+                  <TableRow
+                    key={product.id}
+                    className={`hover:bg-secondary/20 transition-colors ${selectedIds.has(product.id) ? "bg-primary/5" : ""}`}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(product.id)}
+                        onCheckedChange={(c) => toggleSelect(product.id, !!c)}
+                        aria-label={`Select ${product.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="font-medium text-foreground">{product.name}</div>
                       <div className="text-xs text-muted-foreground">{product.title}</div>
@@ -432,6 +573,59 @@ export default function Inventory() {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Add Dialog */}
+      <Dialog open={isBulkAddOpen} onOpenChange={(open) => { if (!bulkRunning) setIsBulkAddOpen(open); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Add Products</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-sm text-muted-foreground">
+              One product per line. Use <code className="px-1 bg-secondary rounded">|</code> to separate fields:
+              <br />
+              <code className="text-xs">name | short title | price | category | stock</code>
+            </p>
+            <Textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              rows={10}
+              className="font-mono text-sm"
+              placeholder="Organic Apple | Apple | 250 | Fruits | 50"
+              disabled={bulkRunning}
+            />
+            {bulkResult && (
+              <div className="rounded-md border border-border p-3 bg-secondary/30 text-sm space-y-1">
+                <div>
+                  <span className="text-emerald-500 font-semibold">{bulkResult.ok} added</span>
+                  {bulkResult.fail > 0 && (
+                    <span className="ml-3 text-destructive font-semibold">{bulkResult.fail} failed</span>
+                  )}
+                </div>
+                {bulkResult.errors.length > 0 && (
+                  <ul className="list-disc list-inside text-xs text-destructive max-h-32 overflow-auto">
+                    {bulkResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2">
+              <p className="text-xs text-muted-foreground">
+                Barcodes are auto-generated for every new product.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsBulkAddOpen(false)} disabled={bulkRunning}>
+                  Close
+                </Button>
+                <Button onClick={handleBulkAdd} disabled={bulkRunning}>
+                  {bulkRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Import
+                </Button>
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

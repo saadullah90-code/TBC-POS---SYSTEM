@@ -11,6 +11,7 @@ import Inventory from "./pages/inventory";
 import Users from "./pages/users";
 import Sales from "./pages/sales";
 import Invoice from "./pages/invoice";
+import Receipt from "./pages/receipt";
 import BarcodePrint from "./pages/barcode-print";
 import CustomerDisplay from "./pages/customer-display";
 
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/customer-display" component={CustomerDisplay} />
       <Route path="/invoice/:id" component={Invoice} />
+      <Route path="/receipt/:id" component={Receipt} />
       <Route path="/inventory/barcode-print/:barcode" component={BarcodePrint} />
       
       <Route path="/">

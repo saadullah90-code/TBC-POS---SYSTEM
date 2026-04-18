@@ -12,46 +12,71 @@ export default function BarcodePrint() {
   const price = search.get("price") || "";
 
   useEffect(() => {
-    if (barcode && canvasRef.current) {
-      try {
-        bwipjs.toCanvas(canvasRef.current, {
-          bcid: "code128",
-          text: barcode,
-          scale: 3,
-          height: 12,
-          includetext: true,
-          textxalign: "center",
-          textsize: 9,
-          paddingwidth: 4,
-          paddingheight: 2,
-        });
-
-        setTimeout(() => {
-          window.print();
-        }, 500);
-      } catch (e) {
-        console.error("Error generating barcode:", e);
-      }
+    if (!barcode || !canvasRef.current) return;
+    try {
+      bwipjs.toCanvas(canvasRef.current, {
+        bcid: "code128",
+        text: barcode,
+        scale: 3,
+        height: 12,
+        includetext: true,
+        textxalign: "center",
+        textsize: 9,
+        paddingwidth: 4,
+        paddingheight: 2,
+      });
+    } catch (e) {
+      console.error("Error generating barcode:", e);
+      return;
     }
+
+    const t = setTimeout(() => window.print(), 300);
+    const onAfterPrint = () => setTimeout(() => window.close(), 200);
+    window.addEventListener("afterprint", onAfterPrint);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", onAfterPrint);
+    };
   }, [barcode]);
 
   return (
-    <div className="w-full h-screen bg-white flex items-center justify-center">
-      <div className="flex flex-col items-center justify-center w-[3in] h-[2in] p-2 text-center bg-white text-black">
+    <div className="label-root bg-white text-black flex items-center justify-center min-h-screen">
+      <style>{`
+        @page { size: 50mm 30mm; margin: 0; }
+        @media print {
+          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+          .no-print { display: none !important; }
+          .label-root { min-height: auto !important; }
+        }
+        .label {
+          width: 50mm;
+          height: 30mm;
+          padding: 1.5mm 2mm;
+          background: white;
+          color: #000;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          font-family: ui-sans-serif, system-ui, sans-serif;
+        }
+      `}</style>
+      <div className="label">
         {title && (
-          <div className="font-bold text-[13px] leading-tight mb-1 px-1 line-clamp-2 break-words">
+          <div style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.4em", overflow: "hidden" }}>
             {title}
           </div>
         )}
         {price && (
-          <div className="text-[12px] font-semibold mb-1">
+          <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 1 }}>
             Rs. {Number(price).toLocaleString("en-PK", { maximumFractionDigits: 2 })}
           </div>
         )}
-        <canvas ref={canvasRef} className="max-w-full" />
+        <canvas ref={canvasRef} style={{ maxWidth: "100%", maxHeight: "16mm" }} />
       </div>
-      <div className="no-print absolute top-4 left-4 bg-yellow-100 text-yellow-800 p-2 rounded text-sm font-medium">
-        This page is optimized for a 3x2 inch barcode label printer.
+      <div className="no-print" style={{ position: "fixed", top: 8, left: 8, background: "#fffbe6", color: "#7a5c00", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>
+        50×30mm sticker label — auto‑prints, then closes.
       </div>
     </div>
   );

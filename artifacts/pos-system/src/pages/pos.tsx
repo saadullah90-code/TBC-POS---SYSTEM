@@ -1,34 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { 
-  useGetCurrentUser, 
-  useGetProductByBarcode, 
+import {
+  useGetCurrentUser,
+  useGetProductByBarcode,
   useCreateSale,
-  Product
+  Product,
 } from "@workspace/api-client-react";
-import { 
-  Search, 
-  ShoppingCart, 
-  Minus, 
-  Plus, 
-  Trash2, 
+import {
+  ShoppingCart,
+  Minus,
+  Plus,
+  Trash2,
   CreditCard,
   Barcode,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from "@/components/ui/dialog";
+import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 
 interface CartItem extends Product {
   cartQuantity: number;
@@ -43,9 +35,15 @@ export default function Pos() {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [activeBarcode, setActiveBarcode] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [completedSaleId, setCompletedSaleId] = useState<number | null>(null);
-  
+  const [lastReceipt, setLastReceipt] = useState<{ id: number; total: number } | null>(null);
+
   const createSale = useCreateSale();
+
+  // Global hardware-scanner listener (works even if focus drifts away)
+  useBarcodeScanner((code) => {
+    setBarcodeInput(code);
+    setActiveBarcode(code);
+  });
 
   // Sync cart to localStorage for customer display
   useEffect(() => {
@@ -162,12 +160,28 @@ export default function Pos() {
       },
       {
         onSuccess: (sale) => {
+          const total = sale.totalAmount;
           setCart([]);
-          setCompletedSaleId(sale.id);
+          setLastReceipt({ id: sale.id, total });
+          // Auto-open receipt window — it will print itself and close.
+          const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+          const w = window.open(
+            `${base}/receipt/${sale.id}`,
+            "branx_receipt",
+            "width=420,height=720",
+          );
+          if (!w) {
+            toast({
+              variant: "destructive",
+              title: "Pop-up blocked",
+              description: "Allow pop-ups to auto-print receipts.",
+            });
+          }
           toast({
-            title: "Sale Completed",
-            description: "Transaction processed successfully.",
+            title: `Sale #${sale.id} completed`,
+            description: `Total ${formatCurrency(total)} — printing receipt…`,
           });
+          setTimeout(() => scannerInputRef.current?.focus(), 100);
         },
         onError: (err: any) => {
           toast({
@@ -201,8 +215,8 @@ export default function Pos() {
               ref={scannerInputRef}
               type="text"
               autoFocus
+              data-scanner="true"
               onBlur={(e) => {
-                // Prevent stealing focus if we clicked a button
                 if (!e.relatedTarget?.closest('button')) {
                   e.target.focus();
                 }
@@ -321,37 +335,42 @@ export default function Pos() {
         </div>
       </div>
 
-      {/* Invoice Print Dialog */}
-      <Dialog open={!!completedSaleId} onOpenChange={(open) => !open && setCompletedSaleId(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center text-2xl font-bold text-primary">Sale Successful</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-6 space-y-4 text-center">
-            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mb-2">
-              <CreditCard className="w-8 h-8" />
-            </div>
-            <p className="text-muted-foreground">
-              Transaction #{completedSaleId} has been completed successfully.
-            </p>
+      {/* Subtle "last receipt" pill — non-blocking, auto-fades */}
+      {lastReceipt && (
+        <div
+          className="no-print fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glossy rounded-full px-5 py-2.5 flex items-center gap-3 text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2"
+          onAnimationEnd={() => setTimeout(() => setLastReceipt(null), 4000)}
+        >
+          <div className="w-7 h-7 rounded-full glossy-brand flex items-center justify-center">
+            <CreditCard className="w-4 h-4" />
           </div>
-          <DialogFooter className="flex-col sm:flex-row sm:space-x-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCompletedSaleId(null)}>
-              New Sale
-            </Button>
-            <Button 
-              className="w-full sm:w-auto" 
-              onClick={() => {
-                window.open(`/invoice/${completedSaleId}`, '_blank');
-                setCompletedSaleId(null);
-                if (scannerInputRef.current) scannerInputRef.current.focus();
-              }}
-            >
-              Print Invoice
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <span className="text-white">
+            Sale #{lastReceipt.id} • {formatCurrency(lastReceipt.total)}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-white/70 hover:text-white"
+            onClick={() => {
+              const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+              window.open(`${base}/receipt/${lastReceipt.id}`, "_blank", "width=420,height=720");
+            }}
+          >
+            Reprint
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-white/70 hover:text-white"
+            onClick={() => {
+              const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+              window.open(`${base}/invoice/${lastReceipt.id}`, "_blank");
+            }}
+          >
+            A4 Invoice
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

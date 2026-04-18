@@ -302,7 +302,7 @@ export default function Inventory() {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => window.open(`/inventory/barcode-print/${product.barcode}`, '_blank')}
+                          onClick={() => window.open(`/inventory/barcode-print/${product.barcode}?title=${encodeURIComponent(product.title)}&price=${product.price}`, '_blank')}
                           title="Print Barcode"
                         >
                           <Printer className="h-4 w-4" />

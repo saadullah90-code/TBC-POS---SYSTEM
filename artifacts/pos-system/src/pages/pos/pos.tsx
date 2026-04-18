@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { printDocument } from "@/lib/print";
-import { ReceiptPrintDialog } from "@/components/receipt-print-dialog";
+import { ReceiptPrintDialog } from "@/components/receipt/receipt-print-dialog";
 import type { Sale } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useListSales, ListSalesPeriod, Sale } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { SaleDetailsDialog } from "@/components/sale-details-dialog";
+import { SaleDetailsDialog } from "@/components/sales/sale-details-dialog";
 
 import {
   Table,

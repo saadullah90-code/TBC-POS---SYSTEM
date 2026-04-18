@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Printer, X } from "lucide-react";
 import type { Sale } from "@workspace/api-client-react";
-import { ReceiptSlip } from "./receipt-slip";
+import { ReceiptSlip } from "@/components/receipt/receipt-slip";
 
 interface Props {
   sale: Sale | null;

@@ -80,34 +80,36 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Premium ambient lighting */}
+      <div className="absolute top-[-15%] left-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.22), transparent 70%)", filter: "blur(40px)" }} />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.14), transparent 70%)", filter: "blur(60px)" }} />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
 
-      <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm border-border shadow-2xl">
-        <CardHeader className="space-y-3 pb-6 text-center">
-          <div className="mx-auto inline-block rounded-2xl bg-black px-6 py-4 shadow-[0_6px_28px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/10 mb-2">
+      <Card className="w-full max-w-md glass-card border-0 relative z-10">
+        <CardHeader className="space-y-4 pb-6 text-center">
+          <div className="mx-auto inline-block rounded-2xl bg-black px-6 py-4 shadow-[0_8px_30px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/10">
             <span className="text-3xl font-black tracking-tight text-white drop-shadow-[0_1px_3px_rgba(255,255,255,0.18)]">
-              BranX<span className="text-red-500">*</span>{" "}
+              BranX<span style={{ color: "#f63d25" }}>*</span>{" "}
               <span className="text-white/95">POS</span>
             </span>
           </div>
-          <CardDescription className="text-muted-foreground">
+          <CardDescription className="text-white/60 tracking-wide">
             Sign in to access your dashboard
           </CardDescription>
+          <div className="hairline h-px w-full" />
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-white/70 text-xs uppercase tracking-wider">Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="admin@example.com" {...field} className="bg-background/50 focus:bg-background transition-colors" />
+                      <Input placeholder="admin@example.com" {...field} className="bg-black/50 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-[#f63d25]/60 h-11" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -118,19 +120,18 @@ export default function Login() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-white/70 text-xs uppercase tracking-wider">Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="bg-background/50 focus:bg-background transition-colors" />
+                      <Input type="password" placeholder="••••••••" {...field} className="bg-black/50 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-[#f63d25]/60 h-11" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
-                className="w-full mt-6" 
+              <Button
+                type="submit"
+                className="w-full mt-2 glossy-brand border-0 h-12 text-base font-semibold tracking-wide"
                 disabled={loginMutation.isPending}
-                size="lg"
               >
                 {loginMutation.isPending ? (
                   <>

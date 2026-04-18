@@ -49,3 +49,8 @@ externalPort = 3003
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_DATABASE_URL = "postgresql://postgres.qigwtwmgbqqtsznkpksi:6wYM5QDkQT5M4Anz@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres"

@@ -68,22 +68,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="p-4 border-t border-border mt-auto">
           <div className="flex items-center gap-3 px-3 py-2 mb-2 rounded-md bg-secondary/50">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold uppercase">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold uppercase shrink-0">
               {user?.name.charAt(0) || "U"}
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-foreground leading-none">{user?.name}</span>
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-sm font-medium text-foreground leading-none truncate">{user?.name}</span>
               <span className="text-xs text-muted-foreground capitalize">{user?.role}</span>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              title="Sign Out"
+              data-testid="button-logout-icon"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
+          <Button
+            variant="outline"
+            className="w-full justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30"
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
+            data-testid="button-logout"
           >
             <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
+            {logoutMutation.isPending ? "Signing Out..." : "Sign Out"}
           </Button>
         </div>
       </aside>

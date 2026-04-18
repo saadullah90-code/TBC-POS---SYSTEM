@@ -38,7 +38,7 @@ export default function Dashboard() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "PKR",
     }).format(amount);
   };
 
@@ -63,7 +63,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
-                {summary ? formatCurrency(summary.totalRevenue) : "$0.00"}
+                {summary ? formatCurrency(summary.totalRevenue) : "Rs 0"}
               </div>
               <p className="text-xs text-muted-foreground mt-1 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1 text-emerald-500" />
@@ -165,7 +165,7 @@ export default function Dashboard() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `Rs ${value}`}
                     />
                     <Tooltip
                       contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "var(--radius)" }}

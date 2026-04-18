@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import branxLogo from "@assets/BranX_1776511358704.png";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -88,8 +87,11 @@ export default function Login() {
 
       <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm border-border shadow-2xl">
         <CardHeader className="space-y-3 pb-6 text-center">
-          <div className="mx-auto inline-block rounded-2xl bg-black/80 px-5 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/5 backdrop-blur-sm mb-2">
-            <img src={branxLogo} alt="BranX" className="h-12 w-auto object-contain drop-shadow-[0_2px_6px_rgba(255,255,255,0.08)]" />
+          <div className="mx-auto inline-block rounded-2xl bg-black px-6 py-4 shadow-[0_6px_28px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/10 mb-2">
+            <span className="text-3xl font-black tracking-tight text-white drop-shadow-[0_1px_3px_rgba(255,255,255,0.18)]">
+              BranX<span className="text-red-500">*</span>{" "}
+              <span className="text-white/95">POS</span>
+            </span>
           </div>
           <CardDescription className="text-muted-foreground">
             Sign in to access your dashboard

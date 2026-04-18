@@ -11,7 +11,6 @@ import {
   MonitorPlay
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import branxLogo from "@assets/BranX_1776511358704.png";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetCurrentUser();
@@ -44,8 +43,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="w-64 border-r border-border bg-card flex flex-col no-print">
         <div className="h-20 flex items-center justify-center px-6 border-b border-border">
-          <div className="rounded-2xl bg-black/80 px-4 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-white/5 backdrop-blur-sm">
-            <img src={branxLogo} alt="BranX" className="h-8 w-auto object-contain drop-shadow-[0_2px_6px_rgba(255,255,255,0.08)]" />
+          <div className="rounded-2xl bg-black px-4 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/10">
+            <span className="text-xl font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(255,255,255,0.15)]">
+              BranX<span className="text-red-500">*</span>{" "}
+              <span className="text-white/95">POS</span>
+            </span>
           </div>
         </div>
         

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
-import { useGetCurrentUser, useLogout } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetCurrentUser, useLogout, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -15,12 +16,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetCurrentUser();
   const logoutMutation = useLogout();
   const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
-      onSuccess: () => {
+      onSettled: () => {
+        queryClient.setQueryData(getGetCurrentUserQueryKey(), null);
+        queryClient.clear();
         setLocation("/login");
-      }
+      },
     });
   };
 

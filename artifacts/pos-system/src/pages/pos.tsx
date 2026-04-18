@@ -205,8 +205,17 @@ export default function Pos() {
     }).format(amount);
   };
 
+  const refocusScanner = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // Don't steal focus from any interactive element the user clicked.
+    if (target.closest('input, textarea, button, [role="button"], a, select, [contenteditable="true"]')) {
+      return;
+    }
+    scannerInputRef.current?.focus();
+  };
+
   return (
-    <div className="flex h-full bg-background" onClick={() => scannerInputRef.current?.focus()}>
+    <div className="flex h-full bg-background" onClick={refocusScanner}>
       
       {/* Scanner & Manual Entry Area */}
       <div className="flex-1 flex flex-col p-6 space-y-6">
@@ -221,9 +230,12 @@ export default function Pos() {
               autoFocus
               data-scanner="true"
               onBlur={(e) => {
-                if (!e.relatedTarget?.closest('button')) {
-                  e.target.focus();
+                const next = e.relatedTarget as HTMLElement | null;
+                // Allow focus to move to any other interactive element.
+                if (next && next.closest('input, textarea, button, [role="button"], a, select, [contenteditable="true"]')) {
+                  return;
                 }
+                e.target.focus();
               }}
               value={barcodeInput}
               onChange={(e) => setBarcodeInput(e.target.value)}

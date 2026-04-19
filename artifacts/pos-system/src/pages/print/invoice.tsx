@@ -9,7 +9,7 @@ import { isEmbedded, signalPrintReady } from "@/lib/print";
 export default function Invoice() {
   const params = useParams();
   const saleId = parseInt(params.id as string, 10);
-  const { data: sale, isLoading, error } = useGetSale(saleId, { query: { enabled: !!saleId } });
+  const { data: sale, isLoading, error } = useGetSale(saleId, { query: { enabled: !!saleId } as any });
 
   const printedRef = useRef(false);
   useEffect(() => {

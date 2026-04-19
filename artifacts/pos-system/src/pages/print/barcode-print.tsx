@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "wouter";
-import bwipjs from "bwip-js";
+import bwipjs from "bwip-js/browser";
 import { isEmbedded, signalPrintReady } from "@/lib/print";
 
 export default function BarcodePrint() {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useListProducts, Product } from "@workspace/api-client-react";
-import bwipjs from "bwip-js";
+import bwipjs from "bwip-js/browser";
 import { Loader2 } from "lucide-react";
 import { isEmbedded, signalPrintReady } from "@/lib/print";
 

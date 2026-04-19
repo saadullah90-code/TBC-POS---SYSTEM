@@ -60,7 +60,7 @@ export default function Pos() {
 
   const { data: scannedProduct, error: scanError, isFetching: isScanning } = useGetProductByBarcode(
     activeBarcode || "",
-    { query: { enabled: !!activeBarcode, retry: false } }
+    { query: { enabled: !!activeBarcode, retry: false } as any }
   );
 
   const resetScanner = useCallback(() => {

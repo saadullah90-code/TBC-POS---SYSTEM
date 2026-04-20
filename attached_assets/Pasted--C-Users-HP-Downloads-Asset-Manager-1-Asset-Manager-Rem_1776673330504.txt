@@ -1,0 +1,123 @@
+ C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager> Remove-Item pnpm-lock.yaml
+>> Remove-Item -Recurse -Force node_modules
+>> pnpm install
+Remove-Item : Cannot find path 'C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules' because it does not exist.
+At line:2 char:1
++ Remove-Item -Recurse -Force node_modules
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\HP\Dow...er\node_modules:String) [Remove-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
+ 
+Scope: all 9 workspace projects
+Packages: +496
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 497, reused 488, downloaded 8, added 496, done
+. preinstall$ node -e "const ua=process.env.npm_config_user_agent||'';if(!ua.startsWith('pnpm/')){console.error('Use pnpm to ins…
+└─ Done in 172ms
+
+devDependencies:
++ prettier 3.8.3
++ typescript 5.9.3 (6.0.3 is available)
+
+Done in 44.1s using pnpm v10.33.0
+PS C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager> pnpm run build
+
+> workspace@0.0.0 build C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager
+> pnpm run typecheck && pnpm -r --if-present run build
+
+
+> workspace@0.0.0 typecheck C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager
+> tsc --build
+
+No projects matched the filters in "C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager"
+No projects matched the filters "C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager" in "C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager"
+Scope: all 9 workspace projects
+artifacts/mockup-sandbox build$ vite build
+│ C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules\rollup\dist\native.js:115
+│  Running...   throw new Error(
+[1 lines collapsed]
+│ Error: Cannot find module @rollup/rollup-win32-x64-msvc. npm has a bug related to optional dependencies (https://github.com/np…
+│2    at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_m…
+│     at Object.      ^
+│3Error: Cannot find module @rollup/rollup-win32-x64-msvc. npm has a bug related to optional dependencies (https://github.com/np…
+│ Error: Cannot find module @rollup/rollup-win32-x64-msvc. npm has a bug related to optional dependencies (https://github.com/np…
+│4    at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_m…
+│     at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_m…
+│5    at Object.<anonymous> (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules…
+│     at Object.<anonymous> (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules…
+│6    ... 3 lines matching cause stack trace ...
+│     ... 3 lines matching cause stack trace ...
+│7    at Module._load (node:internal/modules/cjs/loader:1091:12))ators:240:7)
+│     at Module._load (node:internal/modules/cjs/loader:1091:12))ators:240:7)
+│8    at cjsLoader (node:internal/modules/esm/translators:298:15)ators:240:7)
+│     at cjsLoader (node:internal/modules/esm/translators:298:15)ators:240:7)
+│9    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+│     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+[10 lines collapsed]un (node:internal/modules/esm/module_job:325:25)
+│     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+│ 1   at async ModuleLoader.import (node:internal/modules/esm/loader:606:24) {
+│     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24) {
+│ 2 [cause]: Error: Cannot find module '@rollup/rollup-win32-x64-msvc'
+│   [cause]: Error: Cannot find module '@rollup/rollup-win32-x64-msvc'
+│ 3 Require stack:
+│   Require stack:
+│ 4 - C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules\rollup\dist\native.js
+│   - C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules\rollup\dist\native.js
+│ 5     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+│       at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+│ 6     at Module._load (node:internal/modules/cjs/loader:1038:27)
+│       at Module._load (node:internal/modules/cjs/loader:1038:27)
+│ 7     at Module.require (node:internal/modules/cjs/loader:1289:19)
+│       at Module.require (node:internal/modules/cjs/loader:1289:19)
+│ 8     at require (node:internal/modules/helpers:182:18)
+│       at require (node:internal/modules/helpers:182:18)
+│ 9     at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node…
+│       at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node…
+│20     at Object.<anonymous> (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modul…
+│       at Object.<anonymous> (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modul…
+│ 1     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+│       at Module._compile (node:internal/modules/cjs/loader:1521:14)
+│ 2     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+│       at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+│ C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules\rollup\dist\native.js:115
+│       at Modulthrow new Error(
+│     code: 'MOD      ^
+│ Error: Cannot find module @rollup/rollup-win32-x64-msvc. npm has a bug related to optional dependencies (https://github.com/np…
+│     at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_m…
+│     at Object.<anonymous> (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules…
+│     ... 3 lines matching cause stack trace ...
+│     at Module._load (node:internal/modules/cjs/loader:1091:12)
+│     at cjsLoader (node:internal/modules/esm/translators:298:15)
+│     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:240:7)
+│     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+│     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24) {
+│   [cause]: Error: Cannot find module '@rollup/rollup-win32-x64-msvc'
+│   Require stack:
+│   - C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modules\rollup\dist\native.js
+│       at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+│       at Module._load (node:internal/modules/cjs/loader:1038:27)
+│       at Module.require (node:internal/modules/cjs/loader:1289:19)
+│       at require (node:internal/modules/helpers:182:18)
+│       at requireWithFriendlyError (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node…
+│       at Object.<anonymous> (C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\node_modules\.pnpm\rollup@4.60.2\node_modul…
+│       at Module._compile (node:internal/modules/cjs/loader:1521:14)
+│       at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+│       at Module.load (node:internal/modules/cjs/loader:1266:32)
+│       at Module._load (node:internal/modules/cjs/loader:1091:12) {
+│     code: 'MODULE_NOT_FOUND',
+│     requireStack: [
+│       'C:\\Users\\HP\\Downloads\\Asset-Manager (1)\\Asset-Manager\\node_modules\\.pnpm\\rollup@4.60.2\\node_modules\\rollup\\d…
+│     ]
+│   }
+│ }
+│ Node.js v20.20.2
+└─ Failed in 1s at C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\artifacts\mockup-sandbox
+C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager\artifacts\mockup-sandbox:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/mockup-sandbox@2.0.0 build: `vite build`
+Exit status 1
+ ELIFECYCLE  Command failed with exit code 1.
+PS C:\Users\HP\Downloads\Asset-Manager (1)\Asset-Manager> 

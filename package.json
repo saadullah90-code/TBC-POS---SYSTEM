@@ -1,23 +1,39 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
+  "name": "branx-pos",
+  "version": "1.0.0",
   "license": "MIT",
-  "scripts": {
-    "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||'';if(!ua.startsWith('pnpm/')){console.error('Use pnpm to install (https://pnpm.io). npm/yarn are not supported.');process.exit(1)}const fs=require('fs');for(const f of ['package-lock.json','yarn.lock']){try{fs.unlinkSync(f)}catch(e){}}\"",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
-  },
   "private": true,
-  "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+  "description": "BranX* Retail POS + Inventory + Barcode System",
+  "workspaces": [
+    "lib/*",
+    "artifacts/*",
+    "scripts"
+  ],
+  "scripts": {
+    "dev": "concurrently --names \"API,WEB\" --prefix-colors \"cyan,magenta\" --kill-others-on-fail \"npm run dev --workspace @workspace/api-server\" \"npm run dev --workspace @workspace/pos-system\"",
+    "build": "npm run typecheck && npm run build --workspaces --if-present",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "npm run typecheck:libs && npm run typecheck --workspaces --if-present",
+    "db:push": "npm run push --workspace @workspace/db",
+    "db:seed": "npm run seed --workspace @workspace/scripts",
+    "start": "concurrently --names \"API,WEB\" --prefix-colors \"cyan,magenta\" --kill-others-on-fail \"npm run start --workspace @workspace/api-server\" \"npm run serve --workspace @workspace/pos-system\""
   },
-  "pnpm": {
-    "supportedArchitectures": {
-      "os": ["linux", "win32", "darwin"],
-      "cpu": ["x64", "arm64"],
-      "libc": ["glibc", "musl"]
-    }
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "4.59.0",
+    "@rollup/rollup-darwin-x64": "4.59.0",
+    "@rollup/rollup-linux-x64-gnu": "4.59.0",
+    "@rollup/rollup-win32-x64-msvc": "4.59.0",
+    "@esbuild/darwin-arm64": "0.27.3",
+    "@esbuild/darwin-x64": "0.27.3",
+    "@esbuild/linux-x64": "0.27.3",
+    "@esbuild/win32-x64": "0.27.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

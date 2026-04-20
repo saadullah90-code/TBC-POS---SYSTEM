@@ -31,6 +31,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
+  const displayName =
+    (user && typeof user.name === "string" && user.name.trim()) || "User";
+  const displayInitial = displayName.charAt(0).toUpperCase();
+  const displayRole =
+    (user && typeof user.role === "string" && user.role) || "";
+
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSettled: () => {
@@ -143,14 +149,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold uppercase shrink-0 glossy-brand text-sm"
             >
-              {user?.name?.charAt(0) || "U"}
+              {displayInitial}
             </div>
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-sm font-semibold text-white leading-tight truncate">
-                {user?.name}
+                {displayName}
               </span>
               <span className="text-[11px] text-white/45 capitalize mt-0.5 leading-none">
-                {user?.role}
+                {displayRole}
               </span>
             </div>
             <Button

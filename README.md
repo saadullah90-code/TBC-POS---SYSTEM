@@ -6,8 +6,13 @@ Plug-and-play POS, inventory, and barcode system. React + Vite + Express + Postg
 
 You need: **Node.js 20+** and a Postgres database (Supabase / Neon / local).
 
+> **IMPORTANT:** In any new folder you must run `npm install` **first**, before
+> any other command. Without it you'll see errors like
+> `'drizzle-kit' is not recognized` or `'tsx' is not recognized` —
+> that just means the dependencies haven't been downloaded yet.
+
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (DO THIS FIRST — every fresh copy of the project)
 npm install
 
 # 2. Create your .env file
@@ -15,14 +20,18 @@ npm install
 #    macOS / Linux:        cp .env.example .env
 # Then edit .env and fill in DATABASE_URL and SESSION_SECRET.
 
-# 3. Create database tables
+# 3. One-shot DB setup (creates tables + seeds demo users)
 npm run db:push
-
-# 4. Seed demo users + sample products
 npm run db:seed
 
-# 5. Run the app (API + Web together)
+# 4. Run the app (API + Web together)
 npm run dev
+```
+
+After step 2 you can also do steps 1+3 together with a single command:
+
+```bash
+npm run setup        # = npm install && npm run db:push && npm run db:seed
 ```
 
 Open the web app at <http://localhost:5173>. The API runs on <http://localhost:3001>.

@@ -1,0 +1,86 @@
+PS C:\Users\HP\Downloads\Asset-Manager\Asset-Manager> npm run db:push
+>> npm run db:seed
+>> npm run dev
+
+> branx-pos@1.0.0 db:push
+> npm run push --workspace @workspace/db
+
+
+> @workspace/db@1.0.0 push
+> drizzle-kit push --config ./drizzle.config.ts
+
+Reading config file 'C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\lib\db\drizzle.config.ts'
+SUPABASE_DATABASE_URL or DATABASE_URL must be set, ensure the database is provisioned
+npm error Lifecycle script `push` failed with error:
+npm error code 1
+npm error path C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\lib\db
+npm error workspace @workspace/db@1.0.0
+npm error location C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\lib\db
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c drizzle-kit push --config ./drizzle.config.ts
+
+> branx-pos@1.0.0 db:seed
+> npm run seed --workspace @workspace/scripts
+
+
+> @workspace/scripts@1.0.0 seed
+> tsx ./src/seed.ts
+
+C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\lib\db\src\index.ts:11
+  throw new Error(
+        ^
+
+
+Error: SUPABASE_DATABASE_URL or DATABASE_URL must be set. Did you forget to provision a database?
+    at <anonymous> (C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\lib\db\src\index.ts:11:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.20.2
+npm error Lifecycle script `seed` failed with error:
+npm error code 1
+npm error path C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\scripts
+npm error workspace @workspace/scripts@1.0.0
+npm error location C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\scripts
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsx ./src/seed.ts
+
+> branx-pos@1.0.0 dev
+> concurrently --names "API,WEB" --prefix-colors "cyan,magenta" --kill-others-on-fail "npm run dev --workspace @workspace/api-server" "npm run dev --workspace @workspace/pos-system"
+
+[WEB] 
+[WEB] > @workspace/pos-system@1.0.0 dev
+[WEB] > vite --config vite.config.ts --host 0.0.0.0
+[WEB] 
+[API] 
+[API] > @workspace/api-server@1.0.0 dev
+[API] > npm run build && npm run start
+[API] 
+[API] 
+[API] > @workspace/api-server@1.0.0 build
+[API] > node ./build.mjs
+[API] 
+[WEB] failed to load config from C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\artifacts\pos-system\vite.config.ts
+[WEB] error when starting dev server:
+[WEB] Error: PORT environment variable is required but was not provided.
+[WEB]     at file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/.vite-temp/vite.config.ts.timestamp-1776674752602-2dd8719058a02.mjs:11:9
+[WEB]     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+[WEB]     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+[WEB]     at async loadConfigFromBundledFile (file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/vite/dist/node/chunks/config.js:35920:12)
+[WEB]     at async bundleAndLoadConfigFile (file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/vite/dist/node/chunks/config.js:35808:17)
+[WEB]     at async loadConfigFromFile (file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/vite/dist/node/chunks/config.js:35775:42)
+[WEB]     at async resolveConfig (file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/vite/dist/node/chunks/config.js:35424:22)
+[WEB]     at async _createServer (file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/vite/dist/node/chunks/config.js:25365:67)
+[WEB]     at async CAC.<anonymous> (file:///C:/Users/HP/Downloads/Asset-Manager/Asset-Manager/node_modules/vite/dist/node/cli.js:572:18)
+[WEB] npm error Lifecycle script `dev` failed with error:
+[WEB] npm error code 1
+[WEB] npm error path C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\artifacts\pos-system
+[WEB] npm error workspace @workspace/pos-system@1.0.0
+[WEB] npm error location C:\Users\HP\Downloads\Asset-Manager\Asset-Manager\artifacts\pos-system
+[WEB] npm error command failed
+[WEB] npm error command C:\WINDOWS\system32\cmd.exe /d /s /c vite --config vite.config.ts --host 0.0.0.0
+[WEB] npm run dev --workspace @workspace/pos-system exited with code 1
+--> Sending SIGTERM to other processes..
+[API] npm run dev --workspace @workspace/api-server exited with code 1
+PS C:\Users\HP\Downloads\Asset-Manager\Asset-Manager> 

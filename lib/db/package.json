@@ -5,13 +5,15 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./load-env": "./src/load-env.ts"
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "drizzle-orm": "^0.45.1",
     "drizzle-zod": "^0.8.3",
     "pg": "^8.20.0",

@@ -143,7 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold uppercase shrink-0 glossy-brand text-sm"
             >
-              {user?.name.charAt(0) || "U"}
+              {user?.name?.charAt(0) || "U"}
             </div>
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-sm font-semibold text-white leading-tight truncate">

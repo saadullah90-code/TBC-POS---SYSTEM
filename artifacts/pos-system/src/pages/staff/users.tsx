@@ -244,9 +244,9 @@ export default function Users() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold uppercase shrink-0">
-                          {user.name.charAt(0)}
+                          {user.name?.charAt(0) || "U"}
                         </div>
-                        <span className="font-medium text-foreground">{user.name}</span>
+                        <span className="font-medium text-foreground">{user.name || "—"}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{user.email}</TableCell>

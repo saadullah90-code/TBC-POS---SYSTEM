@@ -100,6 +100,19 @@ export default function BarcodePrintBulk() {
   const { data: products, isLoading } = useListProducts({});
   const [printed, setPrinted] = useState(false);
 
+  // Configured sticker dimensions read from Settings → Printers (must match driver).
+  // IMPORTANT: declared up here, before any early `return` below, so hook order
+  // stays stable between renders (Rules of Hooks).
+  const dims = useMemo(() => getLabelDimensions(), []);
+  const wMm = dims.widthMm;
+  const hMm = dims.heightMm;
+  const minMm = Math.min(wMm, hMm);
+  const baseScale = minMm / 30;
+  const nameSize = Math.max(7, Math.min(11, 9 * baseScale));
+  const titleSize = Math.max(6, Math.min(9, 7 * baseScale));
+  const priceSize = Math.max(8, Math.min(12, 10 * baseScale));
+  const barcodeMaxH = Math.max(8, hMm * 0.55);
+
   const selected = useMemo(() => {
     if (!products) return [] as LabelSpec[];
     const productMap = new Map(products.map((p) => [p.id, p]));
@@ -170,17 +183,6 @@ export default function BarcodePrintBulk() {
       </div>
     );
   }
-
-  // Configured sticker dimensions read from Settings → Printers (must match driver).
-  const dims = useMemo(() => getLabelDimensions(), []);
-  const wMm = dims.widthMm;
-  const hMm = dims.heightMm;
-  const minMm = Math.min(wMm, hMm);
-  const baseScale = minMm / 30;
-  const nameSize = Math.max(7, Math.min(11, 9 * baseScale));
-  const titleSize = Math.max(6, Math.min(9, 7 * baseScale));
-  const priceSize = Math.max(8, Math.min(12, 10 * baseScale));
-  const barcodeMaxH = Math.max(8, hMm * 0.55);
 
   return (
     <div className="bulk-root bg-white text-black">

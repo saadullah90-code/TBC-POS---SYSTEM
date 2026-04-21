@@ -328,6 +328,40 @@ export const ListProductCategoriesResponse = zod.array(ListProductCategoriesResp
 
 
 /**
+ * @summary List installed system printers (for the machine running the API server)
+ */
+export const ListPrintersResponse = zod.object({
+  "available": zod.boolean().describe('Whether the local print bridge is operational on this OS'),
+  "platform": zod.string(),
+  "printers": zod.array(zod.object({
+  "name": zod.string(),
+  "isDefault": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Send a PDF to a specific installed printer (no UI dialog)
+ */
+export const submitPrintJobBodyCopiesMax = 50;
+
+
+
+export const SubmitPrintJobBody = zod.object({
+  "printerName": zod.string(),
+  "pdfBase64": zod.string().describe('Base64-encoded PDF bytes (no data URL prefix)'),
+  "copies": zod.number().min(1).max(submitPrintJobBodyCopiesMax).nullish(),
+  "jobName": zod.string().nullish()
+})
+
+export const SubmitPrintJobResponse = zod.object({
+  "ok": zod.boolean(),
+  "printerName": zod.string(),
+  "message": zod.string().nullish()
+})
+
+
+/**
  * @summary List sales with optional date filter
  */
 export const ListSalesQueryParams = zod.object({

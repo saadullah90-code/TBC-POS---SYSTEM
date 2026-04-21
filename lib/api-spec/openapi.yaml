@@ -20,6 +20,8 @@ tags:
     description: User management
   - name: dashboard
     description: Dashboard analytics
+  - name: print
+    description: Local printer bridge for silent printing
 
 paths:
   /healthz:
@@ -421,6 +423,50 @@ paths:
                 type: array
                 items:
                   type: string
+
+  /print/printers:
+    get:
+      operationId: listPrinters
+      tags: [print]
+      summary: List installed system printers (for the machine running the API server)
+      responses:
+        "200":
+          description: Printer list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintersResponse"
+
+  /print/job:
+    post:
+      operationId: submitPrintJob
+      tags: [print]
+      summary: Send a PDF to a specific installed printer (no UI dialog)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrintJobBody"
+      responses:
+        "200":
+          description: Job accepted by the OS print spooler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintJobResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Print failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /sales:
     get:
@@ -927,3 +973,62 @@ components:
         - productName
         - totalQuantity
         - totalRevenue
+
+    PrinterInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        isDefault:
+          type: boolean
+      required:
+        - name
+        - isDefault
+
+    PrintersResponse:
+      type: object
+      properties:
+        available:
+          type: boolean
+          description: Whether the local print bridge is operational on this OS
+        platform:
+          type: string
+        printers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrinterInfo"
+      required:
+        - available
+        - platform
+        - printers
+
+    PrintJobBody:
+      type: object
+      properties:
+        printerName:
+          type: string
+        pdfBase64:
+          type: string
+          description: Base64-encoded PDF bytes (no data URL prefix)
+        copies:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 50
+        jobName:
+          type: ["string", "null"]
+      required:
+        - printerName
+        - pdfBase64
+
+    PrintJobResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        printerName:
+          type: string
+        message:
+          type: ["string", "null"]
+      required:
+        - ok
+        - printerName

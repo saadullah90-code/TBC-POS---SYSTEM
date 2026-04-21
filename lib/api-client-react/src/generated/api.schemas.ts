@@ -187,6 +187,39 @@ export interface TopProduct {
   totalRevenue: number;
 }
 
+export interface PrinterInfo {
+  name: string;
+  isDefault: boolean;
+}
+
+export interface PrintersResponse {
+  /** Whether the local print bridge is operational on this OS */
+  available: boolean;
+  platform: string;
+  printers: PrinterInfo[];
+}
+
+export interface PrintJobBody {
+  printerName: string;
+  /** Base64-encoded PDF bytes (no data URL prefix) */
+  pdfBase64: string;
+  /**
+     * @minimum 1
+     * @maximum 50
+     * @nullable
+     */
+  copies?: number | null;
+  /** @nullable */
+  jobName?: string | null;
+}
+
+export interface PrintJobResponse {
+  ok: boolean;
+  printerName: string;
+  /** @nullable */
+  message?: string | null;
+}
+
 export type ListProductsParams = {
 category?: string;
 search?: string;

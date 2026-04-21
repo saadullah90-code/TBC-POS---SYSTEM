@@ -17,6 +17,7 @@
     "drizzle-orm": "^0.45.1",
     "express": "^5.0.0",
     "express-session": "^1.19.0",
+    "pdf-to-printer": "^5.7.0",
     "pino": "^9.0.0",
     "pino-http": "^10.0.0"
   },

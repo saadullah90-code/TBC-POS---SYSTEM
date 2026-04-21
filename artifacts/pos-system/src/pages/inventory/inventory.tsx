@@ -65,6 +65,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { printDocument } from "@/lib/print";
+import { silentPrintBarcodeLabels } from "@/lib/silent-barcode";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -228,7 +229,18 @@ function SizesSection({
   const handlePrintAll = () => {
     if (!product || existingVariants.length === 0) return;
     const variantIds = existingVariants.map((v) => v.id).join(",");
-    printDocument(`/inventory/barcode-print-bulk?variantIds=${variantIds}&copies=1`);
+    const labels = existingVariants.map((v) => ({
+      name: product.name,
+      title: product.title,
+      price: product.price,
+      barcode: v.barcode,
+      size: v.size,
+    }));
+    void silentPrintBarcodeLabels(
+      labels,
+      `/inventory/barcode-print-bulk?variantIds=${variantIds}&copies=1`,
+      1,
+    );
   };
 
   return (
@@ -394,7 +406,16 @@ function SizesSection({
                               size="icon"
                               className="h-7 w-7 text-muted-foreground hover:text-primary"
                               onClick={() =>
-                                printDocument(
+                                void silentPrintBarcodeLabels(
+                                  [
+                                    {
+                                      name: product!.name,
+                                      title: product!.title,
+                                      price: product!.price,
+                                      barcode: v.barcode,
+                                      size: v.size,
+                                    },
+                                  ],
                                   buildBarcodePrintUrl(
                                     product!.name,
                                     product!.title,
@@ -402,6 +423,7 @@ function SizesSection({
                                     v.barcode,
                                     v.size,
                                   ),
+                                  1,
                                 )
                               }
                               title="Print barcode"
@@ -634,7 +656,31 @@ export default function Inventory() {
       return;
     }
     const ids = Array.from(selectedIds).join(",");
-    printDocument(`/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}`);
+    const fallbackUrl = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}`;
+    // Build the flat list of labels (one per variant when sized, else one per product)
+    // for the silent path. The fallback URL handles things if no printer is set up.
+    const selectedProducts = (products ?? []).filter((p) => selectedIds.has(p.id));
+    const labels: import("@/lib/pdf/barcode-pdf").LabelSpec[] = selectedProducts.flatMap((p) => {
+      if (p.variants && p.variants.length > 0) {
+        return p.variants.map((v) => ({
+          name: p.name,
+          title: p.title,
+          price: p.price,
+          barcode: v.barcode,
+          size: v.size as string | null,
+        }));
+      }
+      return [
+        {
+          name: p.name,
+          title: p.title,
+          price: p.price,
+          barcode: p.barcode,
+          size: null as string | null,
+        },
+      ];
+    });
+    void silentPrintBarcodeLabels(labels, fallbackUrl, copiesPerLabel);
   };
 
   const handleDelete = (id: number) => {
@@ -867,13 +913,23 @@ export default function Inventory() {
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
                             onClick={() =>
-                              printDocument(
+                              void silentPrintBarcodeLabels(
+                                [
+                                  {
+                                    name: product.name,
+                                    title: product.title,
+                                    price: product.price,
+                                    barcode: product.barcode,
+                                    size: null,
+                                  },
+                                ],
                                 buildBarcodePrintUrl(
                                   product.name,
                                   product.title,
                                   product.price,
                                   product.barcode,
                                 ),
+                                1,
                               )
                             }
                             title={

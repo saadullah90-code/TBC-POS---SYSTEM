@@ -1,7 +1,10 @@
-import { useEffect } from "react";
-import { Printer, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Printer, X, Loader2, CheckCircle2 } from "lucide-react";
 import type { Sale } from "@workspace/api-client-react";
 import { ReceiptSlip } from "@/components/receipt/receipt-slip";
+import { silentPrintPdf, getAssignedPrinter, isBrowserDialogForced } from "@/lib/printer-bridge";
+import { renderReceiptPdf } from "@/lib/pdf/receipt-pdf";
+import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   sale: Sale | null;
@@ -24,27 +27,82 @@ interface Props {
  * "Silent Printing" in your browser/printer settings.
  */
 export function ReceiptPrintDialog({ sale, open, onClose, autoPrint }: Props) {
-  // ESC closes; Cmd/Ctrl+P prints.
+  const { toast } = useToast();
+  const [printing, setPrinting] = useState(false);
+  const [silentSent, setSilentSent] = useState(false);
+  const autoPrintFired = useRef(false);
+
+  /**
+   * Try the silent printer bridge first; if no printer is assigned or the
+   * bridge isn't running on this machine, fall back to the browser dialog.
+   * The fallback keeps things working in cloud preview and on machines that
+   * haven't been set up yet.
+   */
+  const handlePrint = async () => {
+    if (!sale) return;
+    setPrinting(true);
+    try {
+      const pdf = renderReceiptPdf(sale);
+      const result = await silentPrintPdf("receipt", pdf, {
+        jobName: `receipt_${sale.id}`,
+      });
+      if (result.ok) {
+        setSilentSent(true);
+        toast({
+          title: "Receipt sent to printer",
+          description: `Printed silently to ${getAssignedPrinter("receipt")}.`,
+        });
+        // Close shortly after — the slip is already on its way.
+        setTimeout(onClose, 700);
+      } else {
+        // Fall back to the browser print dialog (keeps the UX working even
+        // when the bridge is offline or no printer has been assigned yet).
+        window.print();
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Print failed",
+        description: err?.message || "Falling back to browser dialog.",
+      });
+      window.print();
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  // ESC closes; Cmd/Ctrl+P triggers the same flow as the Print button.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
-        window.print();
+        void handlePrint();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    // handlePrint is intentionally omitted — we always want the latest sale
+    // captured by closure when the user presses the shortcut.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, sale]);
 
-  // Auto-fire the browser print dialog the moment a fresh sale lands.
+  // When a fresh sale lands and autoPrint is on, run the silent flow once.
   useEffect(() => {
     if (!open || !sale || !autoPrint) return;
-    // One animation frame so the slip is in the DOM before printing.
-    const id = requestAnimationFrame(() => window.print());
-    return () => cancelAnimationFrame(id);
+    if (autoPrintFired.current) return;
+    autoPrintFired.current = true;
+    void handlePrint();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, sale, autoPrint]);
+
+  useEffect(() => {
+    if (!open) {
+      autoPrintFired.current = false;
+      setSilentSent(false);
+    }
+  }, [open]);
 
   // Auto-close once the OS print dialog is dismissed (whether printed or cancelled).
   useEffect(() => {
@@ -104,11 +162,24 @@ export function ReceiptPrintDialog({ sale, open, onClose, autoPrint }: Props) {
             Close
           </button>
           <button
-            onClick={() => window.print()}
-            className="flex-[2] h-11 rounded-md glossy-brand text-white font-semibold inline-flex items-center justify-center gap-2 hover:opacity-95 transition-opacity"
+            onClick={() => void handlePrint()}
+            disabled={printing}
+            className="flex-[2] h-11 rounded-md glossy-brand text-white font-semibold inline-flex items-center justify-center gap-2 hover:opacity-95 transition-opacity disabled:opacity-60"
           >
-            <Printer className="w-4 h-4" />
-            Print Receipt
+            {printing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : silentSent ? (
+              <CheckCircle2 className="w-4 h-4" />
+            ) : (
+              <Printer className="w-4 h-4" />
+            )}
+            {silentSent
+              ? "Sent"
+              : printing
+              ? "Printing…"
+              : getAssignedPrinter("receipt") && !isBrowserDialogForced()
+              ? "Print silently"
+              : "Print Receipt"}
           </button>
         </div>
       </div>

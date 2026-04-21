@@ -12,6 +12,7 @@ import BulkAdd from "@/pages/inventory/bulk-add";
 import Users from "@/pages/staff/users";
 import Sales from "@/pages/sales/sales";
 import CustomerDisplay from "@/pages/customer-display/customer-display";
+import PrintersSettings from "@/pages/settings/printers";
 import Invoice from "@/pages/print/invoice";
 import Receipt from "@/pages/print/receipt";
 import BarcodePrint from "@/pages/print/barcode-print";
@@ -84,6 +85,12 @@ function Router() {
       <Route path="/users">
         <AuthWrapper allowedRoles={["admin"]}>
           <Layout><Users /></Layout>
+        </AuthWrapper>
+      </Route>
+
+      <Route path="/settings/printers">
+        <AuthWrapper allowedRoles={["admin", "cashier", "inventory"]}>
+          <Layout><PrintersSettings /></Layout>
         </AuthWrapper>
       </Route>
 

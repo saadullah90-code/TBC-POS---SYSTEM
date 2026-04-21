@@ -10,6 +10,7 @@ import {
   Receipt,
   MonitorPlay,
   Sparkles,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -67,6 +68,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { href: "/inventory", label: "Inventory", icon: Package, roles: ["admin", "inventory"] },
         { href: "/sales", label: "Sales History", icon: Receipt, roles: ["admin"] },
         { href: "/users", label: "Staff", icon: Users, roles: ["admin"] },
+      ],
+    },
+    {
+      label: "System",
+      items: [
+        { href: "/settings/printers", label: "Printers", icon: Printer, roles: ["admin", "cashier", "inventory"] },
       ],
     },
   ];

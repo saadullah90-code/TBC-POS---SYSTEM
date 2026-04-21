@@ -35,6 +35,9 @@ import type {
   ListProductsParams,
   ListSalesParams,
   LoginBody,
+  PrintJobBody,
+  PrintJobResponse,
+  PrintersResponse,
   Product,
   ProductVariant,
   Sale,
@@ -1467,6 +1470,154 @@ export function useListProductCategories<TData = Awaited<ReturnType<typeof listP
 
 
 
+
+/**
+ * @summary List installed system printers (for the machine running the API server)
+ */
+export const getListPrintersUrl = () => {
+
+
+
+
+  return `/api/print/printers`
+}
+
+export const listPrinters = async ( options?: RequestInit): Promise<PrintersResponse> => {
+
+  return customFetch<PrintersResponse>(getListPrintersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPrintersQueryKey = () => {
+    return [
+    `/api/print/printers`
+    ] as const;
+    }
+
+
+export const getListPrintersQueryOptions = <TData = Awaited<ReturnType<typeof listPrinters>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrinters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPrintersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPrinters>>> = ({ signal }) => listPrinters({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPrinters>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPrintersQueryResult = NonNullable<Awaited<ReturnType<typeof listPrinters>>>
+export type ListPrintersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List installed system printers (for the machine running the API server)
+ */
+
+export function useListPrinters<TData = Awaited<ReturnType<typeof listPrinters>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrinters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPrintersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Send a PDF to a specific installed printer (no UI dialog)
+ */
+export const getSubmitPrintJobUrl = () => {
+
+
+
+
+  return `/api/print/job`
+}
+
+export const submitPrintJob = async (printJobBody: PrintJobBody, options?: RequestInit): Promise<PrintJobResponse> => {
+
+  return customFetch<PrintJobResponse>(getSubmitPrintJobUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      printJobBody,)
+  }
+);}
+
+
+
+
+export const getSubmitPrintJobMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPrintJob>>, TError,{data: BodyType<PrintJobBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitPrintJob>>, TError,{data: BodyType<PrintJobBody>}, TContext> => {
+
+const mutationKey = ['submitPrintJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitPrintJob>>, {data: BodyType<PrintJobBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitPrintJob(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitPrintJobMutationResult = NonNullable<Awaited<ReturnType<typeof submitPrintJob>>>
+    export type SubmitPrintJobMutationBody = BodyType<PrintJobBody>
+    export type SubmitPrintJobMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send a PDF to a specific installed printer (no UI dialog)
+ */
+export const useSubmitPrintJob = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPrintJob>>, TError,{data: BodyType<PrintJobBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitPrintJob>>,
+        TError,
+        {data: BodyType<PrintJobBody>},
+        TContext
+      > => {
+      return useMutation(getSubmitPrintJobMutationOptions(options));
+    }
 
 /**
  * @summary List sales with optional date filter

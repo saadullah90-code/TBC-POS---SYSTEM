@@ -47,7 +47,21 @@ type PdfToPrinter = {
   getDefaultPrinter?: () => Promise<{ name?: string; deviceId?: string } | string | null>;
   print: (
     pdf: string,
-    opts?: { printer?: string; copies?: number; silent?: boolean },
+    opts?: {
+      printer?: string;
+      copies?: number;
+      silent?: boolean;
+      // SumatraPDF options surfaced by pdf-to-printer.
+      // `scale: "noscale"` is critical for label printers — the default
+      // "shrink"/"fit" behaviour rescales our exact-size PDF to fit whatever
+      // the driver thinks the page is, which causes content to drift across
+      // sticker boundaries on Zebra-class printers (203 dpi GK888t etc).
+      scale?: "noscale" | "shrink" | "fit";
+      paperSize?: string;
+      orientation?: "portrait" | "landscape";
+      monochrome?: boolean;
+      printDialog?: boolean;
+    },
   ) => Promise<void>;
 };
 
@@ -154,6 +168,11 @@ router.post("/print/job", async (req, res): Promise<void> => {
       printer: printerName,
       copies: copies ?? 1,
       silent: true,
+      // 1:1 — never let SumatraPDF rescale the page. Our PDF is already sized
+      // to the exact label/receipt dimensions; rescaling is what causes
+      // barcode labels to straddle two stickers on thermal label printers.
+      scale: "noscale",
+      monochrome: true,
     });
     res.json({ ok: true, printerName, message: null });
   } catch (err: any) {

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -28,9 +29,121 @@ import {
   isBrowserDialogForced,
   setForceBrowserDialog,
   silentPrintPdf,
+  getLabelDimensions,
+  setLabelDimensions,
+  DEFAULT_LABEL_DIMENSIONS,
+  type LabelDimensions,
 } from "@/lib/printer-bridge";
 import { renderReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { renderBarcodeLabelsPdf } from "@/lib/pdf/barcode-pdf";
+
+const LABEL_PRESETS: { label: string; dims: LabelDimensions }[] = [
+  { label: "50 × 30 mm (default)", dims: { widthMm: 50, heightMm: 30 } },
+  { label: "40 × 30 mm", dims: { widthMm: 40, heightMm: 30 } },
+  { label: "58 × 40 mm", dims: { widthMm: 58, heightMm: 40 } },
+  { label: "30 × 50 mm (portrait)", dims: { widthMm: 30, heightMm: 50 } },
+  { label: "100 × 50 mm", dims: { widthMm: 100, heightMm: 50 } },
+];
+
+function LabelSizeCard({
+  value,
+  onSave,
+  onChange,
+}: {
+  value: LabelDimensions;
+  onSave: (v: LabelDimensions) => void;
+  onChange: (v: LabelDimensions) => void;
+}) {
+  const presetMatch = LABEL_PRESETS.find(
+    (p) => p.dims.widthMm === value.widthMm && p.dims.heightMm === value.heightMm,
+  );
+  const dirtyHint =
+    "These dimensions must match exactly the paper size your label printer driver is configured for. Mismatch is what causes barcodes to straddle two stickers.";
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg glossy-brand flex items-center justify-center shrink-0">
+          <Tag className="h-5 w-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-foreground">Label sticker size</div>
+          <div className="text-xs text-muted-foreground mt-0.5">{dirtyHint}</div>
+        </div>
+        <Badge variant="outline" className="border-primary/40 text-primary">
+          {value.widthMm} × {value.heightMm} mm
+        </Badge>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+        <Select
+          value={presetMatch?.label ?? "__custom__"}
+          onValueChange={(v) => {
+            if (v === "__custom__") return;
+            const p = LABEL_PRESETS.find((x) => x.label === v);
+            if (p) {
+              onChange(p.dims);
+              onSave(p.dims);
+            }
+          }}
+        >
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Pick a preset" />
+          </SelectTrigger>
+          <SelectContent>
+            {LABEL_PRESETS.map((p) => (
+              <SelectItem key={p.label} value={p.label}>
+                {p.label}
+              </SelectItem>
+            ))}
+            {!presetMatch && <SelectItem value="__custom__">Custom</SelectItem>}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={10}
+            max={200}
+            value={value.widthMm}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                widthMm: Math.max(10, parseInt(e.target.value || "0", 10) || 0),
+              })
+            }
+            className="w-20 bg-background"
+          />
+          <span className="text-xs text-muted-foreground">W mm</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={10}
+            max={200}
+            value={value.heightMm}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                heightMm: Math.max(10, parseInt(e.target.value || "0", 10) || 0),
+              })
+            }
+            className="w-20 bg-background"
+          />
+          <span className="text-xs text-muted-foreground">H mm</span>
+        </div>
+        <Button onClick={() => onSave(value)} className="font-semibold">
+          Save size
+        </Button>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground mt-3">
+        Tip: open your printer settings in Windows → Devices &amp; Printers → right-click
+        the label printer → Printing Preferences and check the configured paper size.
+        Use exactly those numbers here.
+      </p>
+    </div>
+  );
+}
 
 const ROLES = [
   {
@@ -64,9 +177,20 @@ export default function PrintersSettings() {
   });
 
   const [forceDialog, setForceDialog] = useState(false);
+  const [labelDims, setLabelDims] = useState<LabelDimensions>(DEFAULT_LABEL_DIMENSIONS);
   useEffect(() => {
     setForceDialog(isBrowserDialogForced());
+    setLabelDims(getLabelDimensions());
   }, []);
+
+  const handleSaveLabelSize = (next: LabelDimensions) => {
+    setLabelDimensions(next);
+    setLabelDims(getLabelDimensions());
+    toast({
+      title: "Label size saved",
+      description: `Each sticker is now ${next.widthMm} × ${next.heightMm} mm.`,
+    });
+  };
 
   const handleAssign = (role: "receipt" | "barcode", value: string) => {
     setAssignedPrinter(role, value === "__none__" ? null : value);
@@ -316,6 +440,9 @@ export default function PrintersSettings() {
           );
         })}
       </div>
+
+      {/* Label dimensions */}
+      <LabelSizeCard value={labelDims} onSave={handleSaveLabelSize} onChange={setLabelDims} />
 
       {/* Force-dialog override */}
       <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">

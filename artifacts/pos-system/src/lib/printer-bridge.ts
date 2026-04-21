@@ -17,11 +17,25 @@ export type PrinterRole = "receipt" | "barcode";
 
 const STORAGE_KEY = "branx_pos_printer_assignments_v1";
 
+export interface LabelDimensions {
+  /** Physical sticker width in mm (the long edge for a typical 50×30mm label). */
+  widthMm: number;
+  /** Physical sticker height in mm. */
+  heightMm: number;
+}
+
+export const DEFAULT_LABEL_DIMENSIONS: LabelDimensions = {
+  widthMm: 50,
+  heightMm: 30,
+};
+
 interface Assignments {
   receipt?: string;
   barcode?: string;
   /** When true, never call silent print — always fall back to the browser dialog. */
   forceBrowserDialog?: boolean;
+  /** Physical sticker size — must match the Zebra/label printer driver's page setup. */
+  labelDimensions?: LabelDimensions;
 }
 
 function readAssignments(): Assignments {
@@ -57,6 +71,29 @@ export function isBrowserDialogForced(): boolean {
 export function setForceBrowserDialog(force: boolean) {
   const a = readAssignments();
   a.forceBrowserDialog = force;
+  writeAssignments(a);
+}
+
+export function getLabelDimensions(): LabelDimensions {
+  const stored = readAssignments().labelDimensions;
+  if (
+    stored &&
+    Number.isFinite(stored.widthMm) &&
+    Number.isFinite(stored.heightMm) &&
+    stored.widthMm > 5 &&
+    stored.heightMm > 5
+  ) {
+    return stored;
+  }
+  return DEFAULT_LABEL_DIMENSIONS;
+}
+
+export function setLabelDimensions(dims: LabelDimensions) {
+  const a = readAssignments();
+  a.labelDimensions = {
+    widthMm: Math.max(10, Math.min(200, Math.round(dims.widthMm))),
+    heightMm: Math.max(10, Math.min(200, Math.round(dims.heightMm))),
+  };
   writeAssignments(a);
 }
 

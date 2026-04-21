@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
-import { db, salesTable, productsTable, usersTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
+import { db, salesTable, productsTable, productVariantsTable, usersTable } from "@workspace/db";
 import {
   CreateSaleBody,
   GetSaleParams,
@@ -51,7 +51,6 @@ router.get("/sales", async (req, res): Promise<void> => {
   }
 
   if (conditions.length > 0) {
-    const { and } = await import("drizzle-orm");
     query = query.where(and(...conditions));
   }
 
@@ -77,14 +76,26 @@ router.post("/sales", async (req, res): Promise<void> => {
 
   const { items, cashierId, customerName } = parsed.data;
 
-  const productIds = items.map((i) => i.productId);
+  const productIds = [...new Set(items.map((i) => i.productId))];
+  const variantIds = [
+    ...new Set(items.map((i) => i.variantId).filter((v): v is number => typeof v === "number")),
+  ];
+
   const { inArray } = await import("drizzle-orm");
   const products = await db
     .select()
     .from(productsTable)
     .where(inArray(productsTable.id, productIds));
-
   const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
+
+  const variants =
+    variantIds.length > 0
+      ? await db
+          .select()
+          .from(productVariantsTable)
+          .where(inArray(productVariantsTable.id, variantIds))
+      : [];
+  const variantMap = Object.fromEntries(variants.map((v) => [v.id, v]));
 
   const saleItems: Array<{
     productId: number;
@@ -93,6 +104,8 @@ router.post("/sales", async (req, res): Promise<void> => {
     price: number;
     quantity: number;
     subtotal: number;
+    variantId?: number | null;
+    size?: string | null;
   }> = [];
 
   for (const item of items) {
@@ -101,29 +114,64 @@ router.post("/sales", async (req, res): Promise<void> => {
       res.status(400).json({ error: `Product ${item.productId} not found` });
       return;
     }
-    if (product.stock < item.quantity) {
-      res.status(400).json({
-        error: `Insufficient stock for "${product.name}". Available: ${product.stock}, requested: ${item.quantity}`,
+
+    if (item.variantId != null) {
+      const variant = variantMap[item.variantId];
+      if (!variant || variant.productId !== product.id) {
+        res.status(400).json({ error: `Variant ${item.variantId} not found for product ${product.id}` });
+        return;
+      }
+      if (variant.stock < item.quantity) {
+        res.status(400).json({
+          error: `Insufficient stock for "${product.name}" (size ${variant.size}). Available: ${variant.stock}, requested: ${item.quantity}`,
+        });
+        return;
+      }
+      saleItems.push({
+        productId: product.id,
+        productName: product.name,
+        barcode: variant.barcode,
+        price: product.price,
+        quantity: item.quantity,
+        subtotal: product.price * item.quantity,
+        variantId: variant.id,
+        size: variant.size,
       });
-      return;
+    } else {
+      if (product.stock < item.quantity) {
+        res.status(400).json({
+          error: `Insufficient stock for "${product.name}". Available: ${product.stock}, requested: ${item.quantity}`,
+        });
+        return;
+      }
+      saleItems.push({
+        productId: product.id,
+        productName: product.name,
+        barcode: product.barcode,
+        price: product.price,
+        quantity: item.quantity,
+        subtotal: product.price * item.quantity,
+        variantId: null,
+        size: null,
+      });
     }
-    saleItems.push({
-      productId: product.id,
-      productName: product.name,
-      barcode: product.barcode,
-      price: product.price,
-      quantity: item.quantity,
-      subtotal: product.price * item.quantity,
-    });
   }
 
   const totalAmount = saleItems.reduce((sum, i) => sum + i.subtotal, 0);
 
+  // Decrement stock — variant stock if variant sale, else product stock.
   for (const item of saleItems) {
-    await db
-      .update(productsTable)
-      .set({ stock: sql`${productsTable.stock} - ${item.quantity}` })
-      .where(eq(productsTable.id, item.productId));
+    if (item.variantId != null) {
+      await db
+        .update(productVariantsTable)
+        .set({ stock: sql`${productVariantsTable.stock} - ${item.quantity}` })
+        .where(eq(productVariantsTable.id, item.variantId));
+    } else {
+      await db
+        .update(productsTable)
+        .set({ stock: sql`${productsTable.stock} - ${item.quantity}` })
+        .where(eq(productsTable.id, item.productId));
+    }
   }
 
   const [sale] = await db

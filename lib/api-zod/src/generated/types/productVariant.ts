@@ -5,16 +5,12 @@
  * Retail POS + Inventory + Barcode System API
  * OpenAPI spec version: 0.1.0
  */
-import type { ProductVariant } from './productVariant';
 
-export interface Product {
+export interface ProductVariant {
   id: number;
-  name: string;
-  title: string;
-  price: number;
-  category: string;
-  stock: number;
+  productId: number;
+  size: string;
   barcode: string;
+  stock: number;
   createdAt: string;
-  variants: ProductVariant[];
 }

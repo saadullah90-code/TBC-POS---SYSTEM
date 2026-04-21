@@ -9,8 +9,10 @@ export default function BarcodePrint() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const search = new URLSearchParams(window.location.search);
+  const name = search.get("name") || "";
   const title = search.get("title") || "";
   const price = search.get("price") || "";
+  const size = search.get("size") || "";
 
   useEffect(() => {
     if (!barcode || !canvasRef.current) return;
@@ -19,10 +21,10 @@ export default function BarcodePrint() {
         bcid: "code128",
         text: barcode,
         scale: 3,
-        height: 12,
+        height: 10,
         includetext: true,
         textxalign: "center",
-        textsize: 9,
+        textsize: 8,
         paddingwidth: 4,
         paddingheight: 2,
       });
@@ -69,17 +71,21 @@ export default function BarcodePrint() {
         }
       `}</style>
       <div className="label">
-        {title && (
-          <div style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.4em", overflow: "hidden" }}>
+        {name && (
+          <div style={{ fontSize: 9, fontWeight: 800, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.4em", overflow: "hidden" }}>
+            {name}
+          </div>
+        )}
+        {title && title !== name && (
+          <div style={{ fontSize: 7, fontWeight: 500, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.2em", overflow: "hidden", color: "#333" }}>
             {title}
           </div>
         )}
-        {price && (
-          <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 1 }}>
-            Rs. {Number(price).toLocaleString("en-PK", { maximumFractionDigits: 2 })}
-          </div>
-        )}
-        <canvas ref={canvasRef} style={{ maxWidth: "100%", maxHeight: "16mm" }} />
+        <div style={{ fontSize: 9, fontWeight: 700, marginBottom: 1, display: "flex", gap: 6, alignItems: "baseline" }}>
+          {price && <span>Rs. {Number(price).toLocaleString("en-PK", { maximumFractionDigits: 2 })}</span>}
+          {size && <span style={{ fontSize: 8, fontWeight: 700, padding: "0 4px", border: "1px solid #000", borderRadius: 2 }}>SIZE {size}</span>}
+        </div>
+        <canvas ref={canvasRef} style={{ maxWidth: "100%", maxHeight: "14mm" }} />
       </div>
       <div className="no-print" style={{ position: "fixed", top: 8, left: 8, background: "#fffbe6", color: "#7a5c00", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>
         50×30mm sticker label — auto‑prints, then closes.

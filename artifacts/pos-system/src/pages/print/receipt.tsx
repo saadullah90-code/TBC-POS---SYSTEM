@@ -115,7 +115,10 @@ export default function Receipt() {
           {sale.items.map((it, i) => (
             <tr key={i}>
               <td colSpan={3} style={{ paddingTop: 4 }}>
-                <div className="bold" style={{ lineHeight: 1.2 }}>{it.productName}</div>
+                <div className="bold" style={{ lineHeight: 1.2 }}>
+                  {it.productName}
+                  {it.size ? <span style={{ marginLeft: 6, padding: "0 4px", border: "1px solid #000", borderRadius: 2, fontSize: 10 }}>SIZE {it.size}</span> : null}
+                </div>
                 <div className="small muted" style={{ fontFamily: "monospace" }}>{it.barcode}</div>
                 <div className="row small" style={{ marginTop: 2 }}>
                   <span>{it.quantity} x {formatPKR(it.price)}</span>

@@ -94,7 +94,10 @@ export default function Invoice() {
             {sale.items.map((item, index) => (
               <tr key={index} className="border-b border-gray-100 last:border-b-0">
                 <td className="py-4 px-2">
-                  <div className="font-medium text-gray-900">{item.productName}</div>
+                  <div className="font-medium text-gray-900">
+                    {item.productName}
+                    {item.size ? <span className="ml-2 px-1.5 py-0.5 border border-gray-800 text-gray-800 rounded text-[10px] font-bold">SIZE {item.size}</span> : null}
+                  </div>
                   <div className="text-gray-500 font-mono text-xs mt-1">{item.barcode}</div>
                 </td>
                 <td className="py-4 px-2 text-center text-gray-700">{item.quantity}</td>

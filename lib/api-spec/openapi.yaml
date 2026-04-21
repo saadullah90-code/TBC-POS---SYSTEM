@@ -307,7 +307,7 @@ paths:
     get:
       operationId: getProductByBarcode
       tags: [products]
-      summary: Get product by barcode (for POS scanning)
+      summary: Get product by barcode (for POS scanning) — also matches variant barcodes
       parameters:
         - name: barcode
           in: path
@@ -316,17 +316,96 @@ paths:
             type: string
       responses:
         "200":
-          description: Product found
+          description: Product found (with optional matched variant if a variant barcode was scanned)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Product"
+                $ref: "#/components/schemas/ScannedProduct"
         "404":
           description: Product not found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /products/{id}/variants:
+    post:
+      operationId: createProductVariant
+      tags: [products]
+      summary: Add a size variant to a product (auto-generates unique barcode)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductVariantBody"
+      responses:
+        "201":
+          description: Variant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductVariant"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /products/{id}/variants/{variantId}:
+    patch:
+      operationId: updateProductVariant
+      tags: [products]
+      summary: Update a variant's size or stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductVariantBody"
+      responses:
+        "200":
+          description: Variant updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductVariant"
+    delete:
+      operationId: deleteProductVariant
+      tags: [products]
+      summary: Delete a variant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Variant deleted
 
   /products/categories:
     get:
@@ -619,6 +698,10 @@ components:
           type: string
         createdAt:
           type: string
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductVariant"
       required:
         - id
         - name
@@ -628,6 +711,59 @@ components:
         - stock
         - barcode
         - createdAt
+        - variants
+
+    ProductVariant:
+      type: object
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        size:
+          type: string
+        barcode:
+          type: string
+        stock:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - productId
+        - size
+        - barcode
+        - stock
+        - createdAt
+
+    CreateProductVariantBody:
+      type: object
+      properties:
+        size:
+          type: string
+        stock:
+          type: integer
+      required:
+        - size
+        - stock
+
+    UpdateProductVariantBody:
+      type: object
+      properties:
+        size:
+          type: string
+        stock:
+          type: integer
+
+    ScannedProduct:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          properties:
+            matchedVariant:
+              oneOf:
+                - $ref: "#/components/schemas/ProductVariant"
+                - type: "null"
 
     CreateProductBody:
       type: object
@@ -678,6 +814,10 @@ components:
           type: integer
         subtotal:
           type: number
+        variantId:
+          type: ["integer", "null"]
+        size:
+          type: ["string", "null"]
       required:
         - productId
         - productName
@@ -724,6 +864,8 @@ components:
                 type: integer
               quantity:
                 type: integer
+              variantId:
+                type: ["integer", "null"]
             required:
               - productId
               - quantity

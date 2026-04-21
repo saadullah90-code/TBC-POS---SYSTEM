@@ -11,6 +11,8 @@ export const salesTable = pgTable("sales", {
     price: number;
     quantity: number;
     subtotal: number;
+    variantId?: number | null;
+    size?: string | null;
   }>>(),
   totalAmount: doublePrecision("total_amount").notNull(),
   cashierId: integer("cashier_id").notNull(),

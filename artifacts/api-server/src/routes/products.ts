@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, like, or, sql } from "drizzle-orm";
-import { db, productsTable } from "@workspace/db";
+import { eq, like, or, sql, inArray, and } from "drizzle-orm";
+import { db, productsTable, productVariantsTable } from "@workspace/db";
 import {
   CreateProductBody,
   UpdateProductBody,
@@ -9,11 +9,30 @@ import {
   DeleteProductParams,
   GetProductByBarcodeParams,
   ListProductsQueryParams,
+  CreateProductVariantBody,
+  UpdateProductVariantBody,
+  CreateProductVariantParams,
+  UpdateProductVariantParams,
+  DeleteProductVariantParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-function formatProduct(p: typeof productsTable.$inferSelect) {
+type ProductRow = typeof productsTable.$inferSelect;
+type VariantRow = typeof productVariantsTable.$inferSelect;
+
+function formatVariant(v: VariantRow) {
+  return {
+    id: v.id,
+    productId: v.productId,
+    size: v.size,
+    barcode: v.barcode,
+    stock: v.stock,
+    createdAt: v.createdAt.toISOString(),
+  };
+}
+
+function formatProduct(p: ProductRow, variants: VariantRow[] = []) {
   return {
     id: p.id,
     name: p.name,
@@ -23,18 +42,53 @@ function formatProduct(p: typeof productsTable.$inferSelect) {
     stock: p.stock,
     barcode: p.barcode,
     createdAt: p.createdAt.toISOString(),
+    variants: variants.map(formatVariant),
   };
 }
 
-async function generateUniqueBarcode(): Promise<string> {
+async function loadVariantsByProductIds(
+  productIds: number[],
+): Promise<Map<number, VariantRow[]>> {
+  const map = new Map<number, VariantRow[]>();
+  if (productIds.length === 0) return map;
+  const rows = await db
+    .select()
+    .from(productVariantsTable)
+    .where(inArray(productVariantsTable.productId, productIds));
+  for (const r of rows) {
+    const list = map.get(r.productId) ?? [];
+    list.push(r);
+    map.set(r.productId, list);
+  }
+  for (const [, list] of map) list.sort((a, b) => a.id - b.id);
+  return map;
+}
+
+async function generateUniqueProductBarcode(): Promise<string> {
   while (true) {
     const num = 1000 + Math.floor(Math.random() * 9000);
     const barcode = `PROD-${num}`;
-    const [existing] = await db
+    const [a] = await db.select().from(productsTable).where(eq(productsTable.barcode, barcode));
+    if (a) continue;
+    const [b] = await db
       .select()
-      .from(productsTable)
-      .where(eq(productsTable.barcode, barcode));
-    if (!existing) return barcode;
+      .from(productVariantsTable)
+      .where(eq(productVariantsTable.barcode, barcode));
+    if (!b) return barcode;
+  }
+}
+
+async function generateUniqueVariantBarcode(): Promise<string> {
+  while (true) {
+    const num = 1000 + Math.floor(Math.random() * 9000);
+    const barcode = `VAR-${num}`;
+    const [a] = await db
+      .select()
+      .from(productVariantsTable)
+      .where(eq(productVariantsTable.barcode, barcode));
+    if (a) continue;
+    const [b] = await db.select().from(productsTable).where(eq(productsTable.barcode, barcode));
+    if (!b) return barcode;
   }
 }
 
@@ -53,6 +107,30 @@ router.get("/products/barcode/:barcode", async (req, res): Promise<void> => {
     return;
   }
 
+  // 1. Try variant barcode first.
+  const [variant] = await db
+    .select()
+    .from(productVariantsTable)
+    .where(eq(productVariantsTable.barcode, params.data.barcode));
+
+  if (variant) {
+    const [product] = await db
+      .select()
+      .from(productsTable)
+      .where(eq(productsTable.id, variant.productId));
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    const variantsMap = await loadVariantsByProductIds([product.id]);
+    res.json({
+      ...formatProduct(product, variantsMap.get(product.id) ?? []),
+      matchedVariant: formatVariant(variant),
+    });
+    return;
+  }
+
+  // 2. Fallback to product barcode.
   const [product] = await db
     .select()
     .from(productsTable)
@@ -63,7 +141,11 @@ router.get("/products/barcode/:barcode", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(formatProduct(product));
+  const variantsMap = await loadVariantsByProductIds([product.id]);
+  res.json({
+    ...formatProduct(product, variantsMap.get(product.id) ?? []),
+    matchedVariant: null,
+  });
 });
 
 router.get("/products", async (req, res): Promise<void> => {
@@ -85,8 +167,8 @@ router.get("/products", async (req, res): Promise<void> => {
       or(
         like(productsTable.name, searchTerm),
         like(productsTable.title, searchTerm),
-        like(productsTable.barcode, searchTerm)
-      )!
+        like(productsTable.barcode, searchTerm),
+      )!,
     );
   }
   if (queryParams.data.lowStock) {
@@ -94,12 +176,12 @@ router.get("/products", async (req, res): Promise<void> => {
   }
 
   if (conditions.length > 0) {
-    const { and } = await import("drizzle-orm");
     query = query.where(and(...conditions));
   }
 
   const products = await query.orderBy(productsTable.createdAt);
-  res.json(products.map(formatProduct));
+  const variantsMap = await loadVariantsByProductIds(products.map((p) => p.id));
+  res.json(products.map((p) => formatProduct(p, variantsMap.get(p.id) ?? [])));
 });
 
 router.post("/products", async (req, res): Promise<void> => {
@@ -109,14 +191,14 @@ router.post("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const barcode = await generateUniqueBarcode();
+  const barcode = await generateUniqueProductBarcode();
 
   const [product] = await db
     .insert(productsTable)
     .values({ ...parsed.data, barcode })
     .returning();
 
-  res.status(201).json(formatProduct(product));
+  res.status(201).json(formatProduct(product, []));
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {
@@ -136,7 +218,8 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(formatProduct(product));
+  const variantsMap = await loadVariantsByProductIds([product.id]);
+  res.json(formatProduct(product, variantsMap.get(product.id) ?? []));
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {
@@ -163,7 +246,8 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(formatProduct(product));
+  const variantsMap = await loadVariantsByProductIds([product.id]);
+  res.json(formatProduct(product, variantsMap.get(product.id) ?? []));
 });
 
 router.delete("/products/:id", async (req, res): Promise<void> => {
@@ -183,6 +267,122 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  res.sendStatus(204);
+});
+
+// ─────────────────── Variant routes ───────────────────
+
+router.post("/products/:id/variants", async (req, res): Promise<void> => {
+  const params = CreateProductVariantParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = CreateProductVariantBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [product] = await db
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.id, params.data.id));
+  if (!product) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  const size = parsed.data.size.trim();
+  if (!size) {
+    res.status(400).json({ error: "Size is required" });
+    return;
+  }
+
+  // Reject duplicate size for the same product (case-insensitive).
+  const existing = await db
+    .select()
+    .from(productVariantsTable)
+    .where(eq(productVariantsTable.productId, product.id));
+  if (existing.some((v) => v.size.toLowerCase() === size.toLowerCase())) {
+    res.status(400).json({ error: `Size "${size}" already exists for this product` });
+    return;
+  }
+
+  const barcode = await generateUniqueVariantBarcode();
+  const [variant] = await db
+    .insert(productVariantsTable)
+    .values({
+      productId: product.id,
+      size,
+      barcode,
+      stock: parsed.data.stock,
+    })
+    .returning();
+
+  res.status(201).json(formatVariant(variant));
+});
+
+router.patch("/products/:id/variants/:variantId", async (req, res): Promise<void> => {
+  const params = UpdateProductVariantParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = UpdateProductVariantBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const updates: Partial<{ size: string; stock: number }> = {};
+  if (parsed.data.size !== undefined) updates.size = parsed.data.size.trim();
+  if (parsed.data.stock !== undefined) updates.stock = parsed.data.stock;
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nothing to update" });
+    return;
+  }
+
+  const [variant] = await db
+    .update(productVariantsTable)
+    .set(updates)
+    .where(
+      and(
+        eq(productVariantsTable.id, params.data.variantId),
+        eq(productVariantsTable.productId, params.data.id),
+      ),
+    )
+    .returning();
+
+  if (!variant) {
+    res.status(404).json({ error: "Variant not found" });
+    return;
+  }
+  res.json(formatVariant(variant));
+});
+
+router.delete("/products/:id/variants/:variantId", async (req, res): Promise<void> => {
+  const params = DeleteProductVariantParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [variant] = await db
+    .delete(productVariantsTable)
+    .where(
+      and(
+        eq(productVariantsTable.id, params.data.variantId),
+        eq(productVariantsTable.productId, params.data.id),
+      ),
+    )
+    .returning();
+
+  if (!variant) {
+    res.status(404).json({ error: "Variant not found" });
+    return;
+  }
   res.sendStatus(204);
 });
 

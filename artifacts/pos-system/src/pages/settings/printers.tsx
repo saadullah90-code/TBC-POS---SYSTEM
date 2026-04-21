@@ -404,14 +404,31 @@ export default function PrintersSettings() {
           ) : (
             <>
               <div className="font-semibold text-foreground">
-                Local print bridge unavailable
+                Silent printing is unavailable on this machine
               </div>
-              <div className="text-muted-foreground mt-0.5">
-                The POS API server is reachable but couldn&apos;t talk to the OS print
-                spooler ({bridge?.platform || "unknown"}). Make sure you started the app
-                with <code className="px-1 bg-secondary rounded">npm run dev</code> on the
-                same Windows machine where your printers are installed. Receipts and
-                labels will fall back to the browser print dialog until this is resolved.
+              <div className="text-muted-foreground mt-1 space-y-2">
+                <p>
+                  The API server is running on <strong>{bridge?.platform || "unknown"}</strong>,
+                  which can&apos;t see your Zebra/thermal printer. Silent print needs the
+                  POS server to be running on the <strong>same Windows PC</strong> the
+                  printer is plugged into.
+                </p>
+                <p>
+                  <strong>If you opened this from a Replit URL</strong> (cloud preview),
+                  that&apos;s why — the cloud server has no access to your printer.
+                </p>
+                <div className="rounded-md border border-amber-500/40 bg-background p-3 text-xs">
+                  <div className="font-semibold text-foreground mb-1">To enable silent printing:</div>
+                  <ol className="list-decimal pl-4 space-y-0.5">
+                    <li>Download / clone this project onto your Windows POS PC.</li>
+                    <li>Run <code className="px-1 bg-secondary rounded">npm install</code> then <code className="px-1 bg-secondary rounded">npm run dev</code>.</li>
+                    <li>Open <code className="px-1 bg-secondary rounded">http://localhost</code> on that same PC and come back to this Settings page.</li>
+                  </ol>
+                </div>
+                <p>
+                  Until then, every print routes through the browser&apos;s print dialog
+                  using the label size you configure below.
+                </p>
               </div>
             </>
           )}

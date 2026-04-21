@@ -3,6 +3,7 @@ import { useListProducts, Product, ProductVariant } from "@workspace/api-client-
 import bwipjs from "bwip-js/browser";
 import { Loader2 } from "lucide-react";
 import { isEmbedded, signalPrintReady } from "@/lib/print";
+import { getLabelDimensions } from "@/lib/printer-bridge";
 
 interface LabelSpec {
   key: string;
@@ -170,19 +171,30 @@ export default function BarcodePrintBulk() {
     );
   }
 
+  // Configured sticker dimensions read from Settings → Printers (must match driver).
+  const dims = useMemo(() => getLabelDimensions(), []);
+  const wMm = dims.widthMm;
+  const hMm = dims.heightMm;
+  const minMm = Math.min(wMm, hMm);
+  const baseScale = minMm / 30;
+  const nameSize = Math.max(7, Math.min(11, 9 * baseScale));
+  const titleSize = Math.max(6, Math.min(9, 7 * baseScale));
+  const priceSize = Math.max(8, Math.min(12, 10 * baseScale));
+  const barcodeMaxH = Math.max(8, hMm * 0.55);
+
   return (
     <div className="bulk-root bg-white text-black">
       <style>{`
-        @page { size: 50mm 30mm; margin: 0; }
+        @page { size: ${wMm}mm ${hMm}mm; margin: 0; }
         @media print {
           html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
           .no-print { display: none !important; }
         }
         .bulk-root { font-family: ui-sans-serif, system-ui, sans-serif; }
         .label {
-          width: 50mm;
-          height: 30mm;
-          padding: 1.5mm 2mm;
+          width: ${wMm}mm;
+          height: ${hMm}mm;
+          padding: ${Math.max(0.8, hMm * 0.05)}mm ${Math.max(1, wMm * 0.04)}mm;
           background: white;
           color: #000;
           display: flex;
@@ -194,14 +206,15 @@ export default function BarcodePrintBulk() {
           break-after: page;
           box-sizing: border-box;
           margin: 0 auto;
+          overflow: hidden;
         }
         .label:last-child { page-break-after: auto; break-after: auto; }
-        .label-name { font-size: 9px; font-weight: 800; line-height: 1.1; margin-bottom: 1px; max-height: 2.4em; overflow: hidden; }
-        .label-title { font-size: 7px; font-weight: 500; line-height: 1.1; margin-bottom: 1px; max-height: 2.2em; overflow: hidden; color: #333; }
+        .label-name { font-size: ${nameSize}px; font-weight: 800; line-height: 1.1; margin-bottom: 1px; max-height: 2.4em; overflow: hidden; }
+        .label-title { font-size: ${titleSize}px; font-weight: 500; line-height: 1.1; margin-bottom: 1px; max-height: 2.2em; overflow: hidden; color: #333; }
         .label-line { display: flex; gap: 6px; align-items: baseline; margin-bottom: 1px; }
-        .label-price { font-size: 9px; font-weight: 700; }
-        .label-size { font-size: 8px; font-weight: 700; padding: 0 4px; border: 1px solid #000; border-radius: 2px; }
-        .label canvas { max-width: 100%; max-height: 14mm; }
+        .label-price { font-size: ${priceSize}px; font-weight: 700; }
+        .label-size { font-size: ${priceSize * 0.8}px; font-weight: 700; padding: 0 4px; border: 1px solid #000; border-radius: 2px; }
+        .label canvas { max-width: 100%; max-height: ${barcodeMaxH}mm; }
 
         @media screen {
           .bulk-root { padding: 24px; }
@@ -210,7 +223,7 @@ export default function BarcodePrintBulk() {
       `}</style>
 
       <div className="no-print" style={{ position: "fixed", top: 8, left: 8, background: "#fffbe6", color: "#7a5c00", padding: "6px 10px", borderRadius: 6, fontSize: 12 }}>
-        Bulk print: {selected.length} label(s) — auto-prints, then closes.
+        Bulk print: {selected.length} label(s) at {wMm.toFixed(2)} × {hMm.toFixed(2)} mm — auto-prints, then closes.
       </div>
 
       {selected.map((s, i) => (

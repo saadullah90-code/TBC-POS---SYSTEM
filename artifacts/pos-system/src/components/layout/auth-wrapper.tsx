@@ -9,10 +9,17 @@ interface AuthWrapperProps {
 }
 
 export function AuthWrapper({ children, allowedRoles }: AuthWrapperProps) {
-  const { data: user, isLoading, isError, isFetched } = useGetCurrentUser();
+  const { data: user, isLoading, isFetched } = useGetCurrentUser();
   const [, setLocation] = useLocation();
 
-  const unauthenticated = !isLoading && (isError || (isFetched && !user));
+  // Only treat as unauthenticated when the fetch *completed* and returned no user.
+  // We deliberately do NOT include `isError` here: a transient 401 right after
+  // login (cookie race against the immediate background refetch) would otherwise
+  // bounce the user back to /login while the cached user is still truthy → which
+  // creates an infinite redirect loop with the Login page's own useEffect.
+  // A real logout/expiry will clear the cached user via the logout mutation,
+  // so `!user` will be true.
+  const unauthenticated = !isLoading && isFetched && !user;
 
   useEffect(() => {
     if (isLoading) return;

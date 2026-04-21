@@ -30,16 +30,22 @@ export default function Login() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const loginMutation = useLogin();
-  const { data: user, isLoading: isCheckingAuth } = useGetCurrentUser();
+  const { data: user, isLoading: isCheckingAuth, isFetched } = useGetCurrentUser();
 
+  // Only auto-redirect when the /me fetch has *completed successfully* and
+  // returned a user. Without `isFetched`, a stale cached user (e.g. after a
+  // failed background refetch) would re-trigger this effect and fight the
+  // AuthWrapper, producing an infinite redirect loop.
+  // Also skip auto-redirect while a login mutation is in flight — that path
+  // handles its own navigation in `onSuccess`.
   useEffect(() => {
-    if (user) {
-      if (user.role === "admin") setLocation("/dashboard");
-      else if (user.role === "cashier") setLocation("/pos");
-      else if (user.role === "inventory") setLocation("/inventory");
-      else setLocation("/");
-    }
-  }, [user, setLocation]);
+    if (loginMutation.isPending) return;
+    if (!isFetched || !user) return;
+    if (user.role === "admin") setLocation("/dashboard");
+    else if (user.role === "cashier") setLocation("/pos");
+    else if (user.role === "inventory") setLocation("/inventory");
+    else setLocation("/");
+  }, [user, isFetched, loginMutation.isPending, setLocation]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

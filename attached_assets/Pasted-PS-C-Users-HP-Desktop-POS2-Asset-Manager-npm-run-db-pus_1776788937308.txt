@@ -1,0 +1,94 @@
+PS C:\Users\HP\Desktop\POS2\Asset-Manager> npm run db:push
+>> npm run db:seed
+>> npm run dev
+
+> branx-pos@1.0.0 db:push
+> npm run push --workspace @workspace/db
+
+
+> @workspace/db@1.0.0 push
+> drizzle-kit push --config ./drizzle.config.ts
+
+Reading config file 'C:\Users\HP\Desktop\POS2\Asset-Manager\lib\db\drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣯] Pulling schema from database...
+npm error Lifecycle script `push` failed with error:
+npm error code 1
+npm error path C:\Users\HP\Desktop\POS2\Asset-Manager\lib\db
+npm error workspace @workspace/db@1.0.0
+npm error location C:\Users\HP\Desktop\POS2\Asset-Manager\lib\db
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c drizzle-kit push --config ./drizzle.config.ts
+
+> branx-pos@1.0.0 db:seed
+> npm run seed --workspace @workspace/scripts
+
+
+> @workspace/scripts@1.0.0 seed
+> tsx ./src/seed.ts
+
+→ Seeding users...
+❌ Seed failed: DrizzleQueryError: Failed query: select "id", "name", "email", "password_hash", "role", "created_at", "updated_at" from "users" where "users"."email" = $1 limit $2
+params: admin@store.com,1
+    at NodePgPreparedQuery.queryWithCache (C:\Users\HP\Desktop\POS2\Asset-Manager\node_modules\src\pg-core\session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (C:\Users\HP\Desktop\POS2\Asset-Manager\node_modules\src\node-postgres\session.ts:154:19)
+    at async main (C:\Users\HP\Desktop\POS2\Asset-Manager\scripts\src\seed.ts:28:22) {
+  query: 'select "id", "name", "email", "password_hash", "role", "created_at", "updated_at" from "users" where "users"."email" = $1 limit $2',
+  params: [ 'admin@store.com', 1 ],
+  cause: Error: getaddrinfo ENOTFOUND db.qigwtwmgbqqtsznkpksi.supabase.co
+      at C:\Users\HP\Desktop\POS2\Asset-Manager\node_modules\pg-pool\index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async <anonymous> (C:\Users\HP\Desktop\POS2\Asset-Manager\node_modules\src\node-postgres\session.ts:161:13)
+      at async NodePgPreparedQuery.queryWithCache (C:\Users\HP\Desktop\POS2\Asset-Manager\node_modules\src\pg-core\session.ts:71:12)
+      at async <anonymous> (C:\Users\HP\Desktop\POS2\Asset-Manager\node_modules\src\node-postgres\session.ts:154:19)
+      at async main (C:\Users\HP\Desktop\POS2\Asset-Manager\scripts\src\seed.ts:28:22) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'db.qigwtwmgbqqtsznkpksi.supabase.co'
+  }
+}
+npm error Lifecycle script `seed` failed with error:
+npm error code 1
+npm error path C:\Users\HP\Desktop\POS2\Asset-Manager\scripts
+npm error workspace @workspace/scripts@1.0.0
+npm error location C:\Users\HP\Desktop\POS2\Asset-Manager\scripts
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsx ./src/seed.ts
+
+> branx-pos@1.0.0 dev
+> concurrently --names "API,WEB" --prefix-colors "cyan,magenta" --kill-others-on-fail "npm run dev --workspace @workspace/api-server" "npm run dev --workspace @workspace/pos-system"
+
+[API] 
+[API] > @workspace/api-server@1.0.0 dev
+[API] > npm run build && npm run start
+[API] 
+[WEB] 
+[WEB] > @workspace/pos-system@1.0.0 dev
+[WEB] > vite --config vite.config.ts --host 0.0.0.0
+[WEB] 
+[API] 
+[API] > @workspace/api-server@1.0.0 build
+[API] > node ./build.mjs
+[API] 
+[WEB] 
+[WEB]   VITE v7.3.2  ready in 1217 ms
+[WEB] 
+[WEB]   ➜  Local:   http://localhost:5173/
+[WEB]   ➜  Network: http://192.168.100.161:5173/
+[API] 
+[API]   dist\index.mjs                   2.3mb
+[API]   dist\pino-worker.mjs           150.9kb
+[API]   dist\pino-file.mjs             139.9kb
+[API]   dist\pino-pretty.mjs           111.6kb
+[API]   dist\thread-stream-worker.mjs    7.1kb
+[API]   ...and 5 more output files...
+[API] 
+[API] Done in 431ms
+[API] 
+[API] > @workspace/api-server@1.0.0 start
+[API] > node --enable-source-maps ./dist/index.mjs
+[API] 
+[API] [21:28:36.122] INFO (144): Server listening
+[API]     port: 3001

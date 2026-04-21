@@ -94,12 +94,26 @@ function buildBarcodePrintUrl(
   return `/inventory/barcode-print/${barcode}?${params.toString()}`;
 }
 
-function VariantManager({
+// A pending size entered while creating a brand new product (before it has an id)
+interface PendingSize {
+  size: string;
+  stock: number;
+}
+
+/**
+ * Section embedded inside the Add/Edit Product dialog.
+ * - When `product` is null (new product), sizes are staged locally and created
+ *   AFTER the product is saved.
+ * - When `product` exists, sizes are persisted immediately via the API.
+ */
+function SizesSection({
   product,
-  onClose,
+  pendingSizes,
+  setPendingSizes,
 }: {
-  product: Product;
-  onClose: () => void;
+  product: Product | null;
+  pendingSizes: PendingSize[];
+  setPendingSizes: (next: PendingSize[]) => void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -113,20 +127,42 @@ function VariantManager({
   const updateVariant = useUpdateProductVariant();
   const deleteVariant = useDeleteProductVariant();
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+
+  const existingVariants: ProductVariant[] = product?.variants ?? [];
+  const usedSizes = new Set<string>([
+    ...existingVariants.map((v) => v.size.toUpperCase()),
+    ...pendingSizes.map((p) => p.size.toUpperCase()),
+  ]);
+  const availablePresets = PRESET_SIZES.filter((s) => !usedSizes.has(s));
+
+  const resolveNewSize = () =>
+    (newSize === "__custom__" ? customSize : newSize).trim().toUpperCase();
 
   const handleAdd = () => {
-    const size = (newSize === "__custom__" ? customSize : newSize).trim().toUpperCase();
+    const size = resolveNewSize();
     if (!size) {
       toast({ variant: "destructive", title: "Pick or type a size first" });
       return;
     }
-    if ((product.variants ?? []).some((v) => v.size.toUpperCase() === size)) {
+    if (usedSizes.has(size)) {
       toast({ variant: "destructive", title: `Size ${size} already exists` });
       return;
     }
+    const stock = Math.max(0, Math.floor(newStock || 0));
+
+    if (!product) {
+      // Stage locally until product is created
+      setPendingSizes([...pendingSizes, { size, stock }]);
+      setNewSize("");
+      setCustomSize("");
+      setNewStock(0);
+      return;
+    }
+
     createVariant.mutate(
-      { id: product.id, data: { size, stock: Math.max(0, Math.floor(newStock || 0)) } },
+      { id: product.id, data: { size, stock } },
       {
         onSuccess: () => {
           refresh();
@@ -136,15 +172,24 @@ function VariantManager({
           toast({ title: `Size ${size} added`, description: "Unique barcode generated." });
         },
         onError: (err: any) => {
-          toast({ variant: "destructive", title: "Could not add size", description: err?.error || "Unknown error" });
+          toast({
+            variant: "destructive",
+            title: "Could not add size",
+            description: err?.error || "Unknown error",
+          });
         },
       },
     );
   };
 
   const handleSaveStock = (variant: ProductVariant) => {
+    if (!product) return;
     updateVariant.mutate(
-      { id: product.id, variantId: variant.id, data: { stock: Math.max(0, Math.floor(editStock || 0)) } },
+      {
+        id: product.id,
+        variantId: variant.id,
+        data: { stock: Math.max(0, Math.floor(editStock || 0)) },
+      },
       {
         onSuccess: () => {
           refresh();
@@ -152,13 +197,18 @@ function VariantManager({
           toast({ title: "Stock updated" });
         },
         onError: (err: any) => {
-          toast({ variant: "destructive", title: "Could not update stock", description: err?.error || "Unknown error" });
+          toast({
+            variant: "destructive",
+            title: "Could not update stock",
+            description: err?.error || "Unknown error",
+          });
         },
       },
     );
   };
 
-  const handleDelete = (variant: ProductVariant) => {
+  const handleDeleteExisting = (variant: ProductVariant) => {
+    if (!product) return;
     if (!confirm(`Delete size ${variant.size}? This cannot be undone.`)) return;
     deleteVariant.mutate(
       { id: product.id, variantId: variant.id },
@@ -171,201 +221,262 @@ function VariantManager({
     );
   };
 
-  const variants = product.variants ?? [];
-  const usedSizes = new Set(variants.map((v) => v.size.toUpperCase()));
-  const availablePresets = PRESET_SIZES.filter((s) => !usedSizes.has(s));
+  const handleDeletePending = (size: string) => {
+    setPendingSizes(pendingSizes.filter((p) => p.size !== size));
+  };
 
   const handlePrintAll = () => {
-    if (variants.length === 0) {
-      toast({ variant: "destructive", title: "No sizes to print yet" });
-      return;
-    }
-    const variantIds = variants.map((v) => v.id).join(",");
+    if (!product || existingVariants.length === 0) return;
+    const variantIds = existingVariants.map((v) => v.id).join(",");
     printDocument(`/inventory/barcode-print-bulk?variantIds=${variantIds}&copies=1`);
   };
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[640px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Ruler className="h-5 w-5 text-primary" />
-            Sizes — {product.name}
-          </DialogTitle>
-        </DialogHeader>
+    <div className="space-y-3 pt-2 border-t border-border">
+      <div className="flex items-center justify-between pt-3">
+        <div className="flex items-center gap-2">
+          <Ruler className="h-4 w-4 text-primary" />
+          <h4 className="font-semibold text-sm">Sizes (optional)</h4>
+          <span className="text-[11px] text-muted-foreground">
+            for clothing &amp; shoes
+          </span>
+        </div>
+        {product && existingVariants.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={handlePrintAll}
+          >
+            <PrinterIcon className="h-3 w-3 mr-1" /> Print all labels
+          </Button>
+        )}
+      </div>
 
-        <div className="space-y-4 pt-2">
-          <div className="rounded-lg border border-border bg-secondary/30 p-3">
-            <div className="text-xs font-semibold text-muted-foreground mb-2">Add a size</div>
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="min-w-[120px]">
-                <label className="text-xs text-muted-foreground">Size</label>
-                <Select value={newSize} onValueChange={setNewSize}>
-                  <SelectTrigger className="h-9 bg-background">
-                    <SelectValue placeholder="Pick…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePresets.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                    <SelectItem value="__custom__">Custom…</SelectItem>
-                  </SelectContent>
-                </Select>
+      <p className="text-[11px] text-muted-foreground">
+        Each size gets its own unique barcode and stock. Leave empty for non-sized items
+        (food, drinks, etc.) — initial stock above will be used instead.
+      </p>
+
+      {/* Add-size row */}
+      <div className="flex flex-wrap items-end gap-2 rounded-md bg-secondary/40 p-2">
+        <div className="min-w-[100px] flex-1">
+          <label className="text-[11px] text-muted-foreground">Size</label>
+          <Select value={newSize} onValueChange={setNewSize}>
+            <SelectTrigger className="h-8 bg-background text-sm">
+              <SelectValue placeholder="Pick…" />
+            </SelectTrigger>
+            <SelectContent>
+              {availablePresets.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+              <SelectItem value="__custom__">Custom…</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {newSize === "__custom__" && (
+          <div className="min-w-[100px] flex-1">
+            <label className="text-[11px] text-muted-foreground">Custom</label>
+            <Input
+              placeholder="e.g. 42"
+              value={customSize}
+              onChange={(e) => setCustomSize(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
+        <div className="w-[80px]">
+          <label className="text-[11px] text-muted-foreground">Stock</label>
+          <Input
+            type="number"
+            min={0}
+            value={newStock}
+            onChange={(e) => setNewStock(parseInt(e.target.value || "0", 10) || 0)}
+            className="h-8 text-sm"
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={handleAdd}
+          disabled={createVariant.isPending}
+          className="h-8 text-sm"
+        >
+          {createVariant.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Plus className="h-3 w-3 mr-1" />
+          )}
+          Add
+        </Button>
+      </div>
+
+      {/* Existing variants (saved) */}
+      {existingVariants.length > 0 && (
+        <div className="rounded-md border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/50 text-xs text-muted-foreground">
+              <tr>
+                <th className="text-left px-3 py-1.5 font-medium">Size</th>
+                <th className="text-left px-3 py-1.5 font-medium">Barcode</th>
+                <th className="text-right px-3 py-1.5 font-medium">Stock</th>
+                <th className="text-right px-3 py-1.5 font-medium w-[110px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {existingVariants.map((v) => {
+                const isEditing = editingId === v.id;
+                const isOut = v.stock <= 0;
+                return (
+                  <tr key={v.id} className="border-t border-border">
+                    <td className="px-3 py-1.5">
+                      <Badge variant="outline" className="font-mono">
+                        {v.size}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <code className="px-1.5 py-0.5 bg-secondary rounded text-[11px] font-mono">
+                        {v.barcode}
+                      </code>
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          value={editStock}
+                          onChange={(e) =>
+                            setEditStock(parseInt(e.target.value || "0", 10) || 0)
+                          }
+                          className="h-7 w-16 ml-auto text-sm"
+                        />
+                      ) : (
+                        <Badge
+                          variant={isOut ? "destructive" : v.stock <= 5 ? "secondary" : "outline"}
+                        >
+                          {isOut ? "Sold out" : v.stock}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      <div className="flex justify-end gap-0.5">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-primary"
+                              onClick={() => handleSaveStock(v)}
+                              disabled={updateVariant.isPending}
+                              title="Save"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setEditingId(null)}
+                              title="Cancel"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary"
+                              onClick={() =>
+                                printDocument(
+                                  buildBarcodePrintUrl(
+                                    product!.name,
+                                    product!.title,
+                                    product!.price,
+                                    v.barcode,
+                                    v.size,
+                                  ),
+                                )
+                              }
+                              title="Print barcode"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                setEditingId(v.id);
+                                setEditStock(v.stock);
+                              }}
+                              title="Edit stock"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteExisting(v)}
+                              title="Delete size"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pending (un-saved) sizes for new products */}
+      {pendingSizes.length > 0 && (
+        <div className="rounded-md border border-dashed border-primary/40 bg-primary/5 p-2 space-y-1">
+          <div className="text-[11px] font-semibold text-primary uppercase tracking-wider">
+            Will be created with the product
+          </div>
+          {pendingSizes.map((p) => (
+            <div
+              key={p.size}
+              className="flex items-center justify-between text-sm py-1"
+            >
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono">
+                  {p.size}
+                </Badge>
+                <span className="text-muted-foreground text-xs">
+                  stock {p.stock}
+                </span>
               </div>
-              {newSize === "__custom__" && (
-                <div className="min-w-[120px]">
-                  <label className="text-xs text-muted-foreground">Custom size</label>
-                  <Input
-                    placeholder="e.g. 42 or EU38"
-                    value={customSize}
-                    onChange={(e) => setCustomSize(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-              )}
-              <div className="w-[110px]">
-                <label className="text-xs text-muted-foreground">Stock</label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={newStock}
-                  onChange={(e) => setNewStock(parseInt(e.target.value || "0", 10) || 0)}
-                  className="h-9"
-                />
-              </div>
-              <Button onClick={handleAdd} disabled={createVariant.isPending} className="h-9">
-                {createVariant.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
-                Add
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                onClick={() => handleDeletePending(p.size)}
+                title="Remove"
+              >
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Each size gets its own unique barcode. When that size sells, only its stock decreases.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {variants.length} size{variants.length === 1 ? "" : "s"}
-            </div>
-            <Button variant="outline" size="sm" onClick={handlePrintAll} disabled={variants.length === 0}>
-              <PrinterIcon className="h-4 w-4 mr-1" /> Print all size labels
-            </Button>
-          </div>
-
-          <ScrollArea className="max-h-[320px] rounded-lg border border-border">
-            {variants.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground text-sm">
-                No sizes yet. Add S, M, L, XL… above to start tracking inventory per size.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Barcode</TableHead>
-                    <TableHead className="text-right">Stock</TableHead>
-                    <TableHead className="w-[150px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {variants.map((v) => {
-                    const isEditing = editingId === v.id;
-                    const isOut = v.stock <= 0;
-                    return (
-                      <TableRow key={v.id}>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono">{v.size}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <code className="px-2 py-1 bg-secondary rounded text-xs font-mono">{v.barcode}</code>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {isEditing ? (
-                            <Input
-                              type="number"
-                              min={0}
-                              value={editStock}
-                              onChange={(e) => setEditStock(parseInt(e.target.value || "0", 10) || 0)}
-                              className="h-8 w-20 ml-auto"
-                            />
-                          ) : (
-                            <Badge variant={isOut ? "destructive" : v.stock <= 5 ? "secondary" : "outline"}>
-                              {isOut ? "Sold out" : v.stock}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {isEditing ? (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-primary"
-                                  onClick={() => handleSaveStock(v)}
-                                  disabled={updateVariant.isPending}
-                                  title="Save"
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => setEditingId(null)}
-                                  title="Cancel"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                  onClick={() =>
-                                    printDocument(buildBarcodePrintUrl(product.name, product.title, product.price, v.barcode, v.size))
-                                  }
-                                  title="Print barcode"
-                                >
-                                  <Printer className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                  onClick={() => {
-                                    setEditingId(v.id);
-                                    setEditStock(v.stock);
-                                  }}
-                                  title="Edit stock"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDelete(v)}
-                                  title="Delete size"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </ScrollArea>
+          ))}
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </div>
   );
 }
 
@@ -374,7 +485,7 @@ export default function Inventory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [variantsForProductId, setVariantsForProductId] = useState<number | null>(null);
+  const [pendingSizes, setPendingSizes] = useState<PendingSize[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [copiesPerLabel, setCopiesPerLabel] = useState<number>(1);
   const [, setLocation] = useLocation();
@@ -387,11 +498,19 @@ export default function Inventory() {
     category: categoryFilter !== "all" ? categoryFilter : undefined,
   });
 
+  // Re-resolve the editing product from the freshly fetched list so the dialog's
+  // SizesSection always reflects the latest variants after add/edit/delete.
+  const liveEditingProduct =
+    editingProduct && products
+      ? products.find((p) => p.id === editingProduct.id) ?? editingProduct
+      : editingProduct;
+
   const categories = Array.from(new Set(products?.map((p) => p.category) || [])).filter(Boolean);
 
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const createVariant = useCreateProductVariant();
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
@@ -410,12 +529,22 @@ export default function Inventory() {
     }
   }, [editingProduct, form]);
 
-  const handleEditClick = (product: Product) => setEditingProduct(product);
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    setPendingSizes([]);
+  };
 
   const handleOpenAdd = () => {
     setEditingProduct(null);
+    setPendingSizes([]);
     form.reset({ name: "", title: "", price: 0, category: "", stock: 0 });
     setIsAddOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsAddOpen(false);
+    setEditingProduct(null);
+    setPendingSizes([]);
   };
 
   const onSubmit = (values: z.infer<typeof productSchema>) => {
@@ -425,11 +554,15 @@ export default function Inventory() {
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-            setEditingProduct(null);
+            closeDialog();
             toast({ title: "Product updated successfully" });
           },
           onError: (err: any) => {
-            toast({ variant: "destructive", title: "Error updating product", description: err?.error || "Unknown error" });
+            toast({
+              variant: "destructive",
+              title: "Error updating product",
+              description: err?.error || "Unknown error",
+            });
           },
         },
       );
@@ -437,14 +570,43 @@ export default function Inventory() {
       createProduct.mutate(
         { data: values },
         {
-          onSuccess: () => {
+          onSuccess: async (newProduct) => {
+            // Persist any sizes the user staged in the dialog
+            if (pendingSizes.length > 0) {
+              try {
+                await Promise.all(
+                  pendingSizes.map((p) =>
+                    createVariant.mutateAsync({
+                      id: newProduct.id,
+                      data: { size: p.size, stock: p.stock },
+                    }),
+                  ),
+                );
+                toast({
+                  title: "Product created",
+                  description: `${pendingSizes.length} size${
+                    pendingSizes.length === 1 ? "" : "s"
+                  } added.`,
+                });
+              } catch (e: any) {
+                toast({
+                  variant: "destructive",
+                  title: "Product created, but some sizes failed",
+                  description: e?.error || "Please add them again from Edit.",
+                });
+              }
+            } else {
+              toast({ title: "Product added successfully" });
+            }
             queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-            setIsAddOpen(false);
-            form.reset();
-            toast({ title: "Product added successfully" });
+            closeDialog();
           },
           onError: (err: any) => {
-            toast({ variant: "destructive", title: "Error adding product", description: err?.error || "Unknown error" });
+            toast({
+              variant: "destructive",
+              title: "Error adding product",
+              description: err?.error || "Unknown error",
+            });
           },
         },
       );
@@ -476,7 +638,9 @@ export default function Inventory() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this product? All its sizes will be removed too.")) {
+    if (
+      confirm("Are you sure you want to delete this product? All its sizes will be removed too.")
+    ) {
       deleteProduct.mutate(
         { id },
         {
@@ -492,17 +656,21 @@ export default function Inventory() {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "PKR" }).format(amount);
 
-  const variantProduct = products?.find((p) => p.id === variantsForProductId) ?? null;
-
   return (
     <div className="flex flex-col h-full bg-background p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
-          <p className="text-muted-foreground mt-1">Manage products, sizes, stock levels, and barcodes.</p>
+          <p className="text-muted-foreground mt-1">
+            Manage products, sizes, stock levels, and barcodes.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setLocation("/inventory/bulk-add")} className="font-semibold">
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/inventory/bulk-add")}
+            className="font-semibold"
+          >
             <Upload className="mr-2 h-4 w-4" /> Bulk Add
           </Button>
           <Button onClick={handleOpenAdd} className="font-semibold">
@@ -515,8 +683,15 @@ export default function Inventory() {
         <div className="flex items-center justify-between bg-card p-3 rounded-lg border border-primary/40 shadow-sm">
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold text-foreground">{selectedIds.size}</span>
-            <span className="text-muted-foreground">product{selectedIds.size === 1 ? "" : "s"} selected</span>
-            <Button variant="ghost" size="sm" className="h-7" onClick={() => setSelectedIds(new Set())}>
+            <span className="text-muted-foreground">
+              product{selectedIds.size === 1 ? "" : "s"} selected
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7"
+              onClick={() => setSelectedIds(new Set())}
+            >
               Clear
             </Button>
           </div>
@@ -527,7 +702,9 @@ export default function Inventory() {
                 type="number"
                 min={1}
                 value={copiesPerLabel}
-                onChange={(e) => setCopiesPerLabel(Math.max(1, parseInt(e.target.value || "1", 10) || 1))}
+                onChange={(e) =>
+                  setCopiesPerLabel(Math.max(1, parseInt(e.target.value || "1", 10) || 1))
+                }
                 className="h-8 w-20"
               />
             </label>
@@ -571,7 +748,11 @@ export default function Inventory() {
               <TableRow>
                 <TableHead className="w-[40px]">
                   <Checkbox
-                    checked={!!products && products.length > 0 && products.every((p) => selectedIds.has(p.id))}
+                    checked={
+                      !!products &&
+                      products.length > 0 &&
+                      products.every((p) => selectedIds.has(p.id))
+                    }
                     onCheckedChange={(c) => toggleSelectAll(!!c)}
                     aria-label="Select all"
                   />
@@ -581,7 +762,7 @@ export default function Inventory() {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="w-[200px] text-right">Actions</TableHead>
+                <TableHead className="w-[160px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -614,7 +795,9 @@ export default function Inventory() {
                   return (
                     <TableRow
                       key={product.id}
-                      className={`hover:bg-secondary/20 transition-colors ${selectedIds.has(product.id) ? "bg-primary/5" : ""}`}
+                      className={`hover:bg-secondary/20 transition-colors ${
+                        selectedIds.has(product.id) ? "bg-primary/5" : ""
+                      }`}
                     >
                       <TableCell>
                         <Checkbox
@@ -642,7 +825,9 @@ export default function Inventory() {
                               </span>
                             ))}
                             {variants.length > 6 && (
-                              <span className="text-[10px] text-muted-foreground">+{variants.length - 6}</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                +{variants.length - 6}
+                              </span>
                             )}
                           </div>
                         )}
@@ -653,12 +838,20 @@ export default function Inventory() {
                         </code>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-background/50">{product.category}</Badge>
+                        <Badge variant="outline" className="bg-background/50">
+                          {product.category}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(product.price)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(product.price)}
+                      </TableCell>
                       <TableCell className="text-right">
                         {hasVariants ? (
-                          <Badge variant={allOut ? "destructive" : displayedStock <= 5 ? "secondary" : "outline"}>
+                          <Badge
+                            variant={
+                              allOut ? "destructive" : displayedStock <= 5 ? "secondary" : "outline"
+                            }
+                          >
                             {allOut ? "All sold out" : `${displayedStock} across ${variants.length}`}
                           </Badge>
                         ) : (
@@ -673,19 +866,21 @@ export default function Inventory() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() => setVariantsForProductId(product.id)}
-                            title="Manage sizes"
-                          >
-                            <Ruler className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
                             onClick={() =>
-                              printDocument(buildBarcodePrintUrl(product.name, product.title, product.price, product.barcode))
+                              printDocument(
+                                buildBarcodePrintUrl(
+                                  product.name,
+                                  product.title,
+                                  product.price,
+                                  product.barcode,
+                                ),
+                              )
                             }
-                            title={hasVariants ? "Print product barcode (use Sizes for size labels)" : "Print Barcode"}
+                            title={
+                              hasVariants
+                                ? "Print product barcode (open Edit for size labels)"
+                                : "Print Barcode"
+                            }
                           >
                             <Printer className="h-4 w-4" />
                           </Button>
@@ -694,7 +889,7 @@ export default function Inventory() {
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
                             onClick={() => handleEditClick(product)}
-                            title="Edit"
+                            title="Edit (incl. sizes)"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -721,18 +916,17 @@ export default function Inventory() {
       <Dialog
         open={isAddOpen || !!editingProduct}
         onOpenChange={(open) => {
-          if (!open) {
-            setIsAddOpen(false);
-            setEditingProduct(null);
-          }
+          if (!open) closeDialog();
         }}
       >
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
+            <DialogTitle>
+              {editingProduct ? "Edit Product" : "Add New Product"}
+            </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
               <FormField
                 control={form.control}
                 name="name"
@@ -800,13 +994,22 @@ export default function Inventory() {
                   </FormItem>
                 )}
               />
-              {!editingProduct && (
-                <p className="text-xs text-muted-foreground py-2 bg-secondary/50 px-3 rounded mt-2">
-                  A unique barcode will be generated automatically. After creating, click the ruler icon to add sizes (S/M/L/XL…) — each size gets its own barcode and stock.
-                </p>
-              )}
-              <div className="pt-4 flex justify-end">
-                <Button type="submit" disabled={createProduct.isPending || updateProduct.isPending}>
+
+              {/* Sizes — embedded directly in the dialog */}
+              <SizesSection
+                product={liveEditingProduct}
+                pendingSizes={pendingSizes}
+                setPendingSizes={setPendingSizes}
+              />
+
+              <div className="pt-2 flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={closeDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createProduct.isPending || updateProduct.isPending}
+                >
                   {(createProduct.isPending || updateProduct.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
@@ -817,10 +1020,6 @@ export default function Inventory() {
           </Form>
         </DialogContent>
       </Dialog>
-
-      {variantProduct && (
-        <VariantManager product={variantProduct} onClose={() => setVariantsForProductId(null)} />
-      )}
     </div>
   );
 }

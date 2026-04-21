@@ -90,12 +90,20 @@ export function getLabelDimensions(): LabelDimensions {
 
 export function setLabelDimensions(dims: LabelDimensions) {
   const a = readAssignments();
+  // Keep sub-mm precision (e.g. 3.20" = 81.28mm) — rounding to whole mm
+  // breaks the 1:1 match with thermal-printer driver pages and is what causes
+  // labels to drift across the perforation.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   a.labelDimensions = {
-    widthMm: Math.max(10, Math.min(200, Math.round(dims.widthMm))),
-    heightMm: Math.max(10, Math.min(200, Math.round(dims.heightMm))),
+    widthMm: Math.max(10, Math.min(250, round2(dims.widthMm))),
+    heightMm: Math.max(10, Math.min(250, round2(dims.heightMm))),
   };
   writeAssignments(a);
 }
+
+export const MM_PER_INCH = 25.4;
+export const inchToMm = (inch: number): number => inch * MM_PER_INCH;
+export const mmToInch = (mm: number): number => mm / MM_PER_INCH;
 
 export async function fetchPrinters(): Promise<PrintersResponse> {
   return listPrintersFn();

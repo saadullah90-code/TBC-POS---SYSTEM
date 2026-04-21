@@ -32,18 +32,40 @@ import {
   getLabelDimensions,
   setLabelDimensions,
   DEFAULT_LABEL_DIMENSIONS,
+  inchToMm,
+  mmToInch,
   type LabelDimensions,
 } from "@/lib/printer-bridge";
 import { renderReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { renderBarcodeLabelsPdf } from "@/lib/pdf/barcode-pdf";
 
 const LABEL_PRESETS: { label: string; dims: LabelDimensions }[] = [
-  { label: "50 × 30 mm (default)", dims: { widthMm: 50, heightMm: 30 } },
+  // Matches the Zebra GK888t (EPL) "User defined" 3.20 × 1.10 inch default
+  // most retail label rolls in PK come pre-cut for.
+  {
+    label: "Zebra GK888t — 3.20 × 1.10 in (81.28 × 27.94 mm)",
+    dims: { widthMm: inchToMm(3.2), heightMm: inchToMm(1.1) },
+  },
+  { label: "50 × 30 mm", dims: { widthMm: 50, heightMm: 30 } },
   { label: "40 × 30 mm", dims: { widthMm: 40, heightMm: 30 } },
   { label: "58 × 40 mm", dims: { widthMm: 58, heightMm: 40 } },
   { label: "30 × 50 mm (portrait)", dims: { widthMm: 30, heightMm: 50 } },
   { label: "100 × 50 mm", dims: { widthMm: 100, heightMm: 50 } },
+  { label: "4 × 6 in (101.6 × 152.4 mm)", dims: { widthMm: inchToMm(4), heightMm: inchToMm(6) } },
 ];
+
+type Unit = "mm" | "in";
+
+function dimsApproxEqual(a: LabelDimensions, b: LabelDimensions): boolean {
+  return Math.abs(a.widthMm - b.widthMm) < 0.05 && Math.abs(a.heightMm - b.heightMm) < 0.05;
+}
+
+function fmtMm(n: number): string {
+  return (Math.round(n * 100) / 100).toString();
+}
+function fmtIn(mm: number): string {
+  return (Math.round(mmToInch(mm) * 100) / 100).toString();
+}
 
 function LabelSizeCard({
   value,
@@ -54,11 +76,22 @@ function LabelSizeCard({
   onSave: (v: LabelDimensions) => void;
   onChange: (v: LabelDimensions) => void;
 }) {
-  const presetMatch = LABEL_PRESETS.find(
-    (p) => p.dims.widthMm === value.widthMm && p.dims.heightMm === value.heightMm,
-  );
-  const dirtyHint =
-    "These dimensions must match exactly the paper size your label printer driver is configured for. Mismatch is what causes barcodes to straddle two stickers.";
+  const [unit, setUnit] = useState<Unit>("in");
+
+  const presetMatch = LABEL_PRESETS.find((p) => dimsApproxEqual(p.dims, value));
+
+  // Display values in the chosen unit while always storing canonical mm.
+  const displayW = unit === "mm" ? fmtMm(value.widthMm) : fmtIn(value.widthMm);
+  const displayH = unit === "mm" ? fmtMm(value.heightMm) : fmtIn(value.heightMm);
+
+  const updateFromInput = (which: "w" | "h", raw: string) => {
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const mm = unit === "mm" ? n : inchToMm(n);
+    if (which === "w") onChange({ ...value, widthMm: mm });
+    else onChange({ ...value, heightMm: mm });
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-start gap-3 mb-4">
@@ -67,11 +100,47 @@ function LabelSizeCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-foreground">Label sticker size</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{dirtyHint}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            Must match your printer driver's <strong>Printing Preferences → Size</strong>{" "}
+            exactly. Switch to the same unit your driver shows (mm or inch) and copy
+            the numbers across — that's what stops the barcode from drifting onto the
+            next sticker.
+          </div>
         </div>
-        <Badge variant="outline" className="border-primary/40 text-primary">
-          {value.widthMm} × {value.heightMm} mm
+        <Badge variant="outline" className="border-primary/40 text-primary whitespace-nowrap">
+          {fmtIn(value.widthMm)} × {fmtIn(value.heightMm)} in
         </Badge>
+      </div>
+
+      {/* Unit toggle */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-muted-foreground">Units:</span>
+        <div className="inline-flex rounded-md border border-border overflow-hidden text-xs">
+          <button
+            type="button"
+            onClick={() => setUnit("in")}
+            className={
+              "px-3 py-1 font-semibold " +
+              (unit === "in"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-foreground hover:bg-muted")
+            }
+          >
+            inch
+          </button>
+          <button
+            type="button"
+            onClick={() => setUnit("mm")}
+            className={
+              "px-3 py-1 font-semibold border-l border-border " +
+              (unit === "mm"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-foreground hover:bg-muted")
+            }
+          >
+            mm
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
@@ -102,45 +171,46 @@ function LabelSizeCard({
         <div className="flex items-center gap-1">
           <Input
             type="number"
-            min={10}
-            max={200}
-            value={value.widthMm}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                widthMm: Math.max(10, parseInt(e.target.value || "0", 10) || 0),
-              })
-            }
-            className="w-20 bg-background"
+            step={unit === "mm" ? "0.1" : "0.01"}
+            min={unit === "mm" ? 10 : 0.4}
+            max={unit === "mm" ? 250 : 10}
+            value={displayW}
+            onChange={(e) => updateFromInput("w", e.target.value)}
+            className="w-24 bg-background"
           />
-          <span className="text-xs text-muted-foreground">W mm</span>
+          <span className="text-xs text-muted-foreground">W {unit}</span>
         </div>
         <div className="flex items-center gap-1">
           <Input
             type="number"
-            min={10}
-            max={200}
-            value={value.heightMm}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                heightMm: Math.max(10, parseInt(e.target.value || "0", 10) || 0),
-              })
-            }
-            className="w-20 bg-background"
+            step={unit === "mm" ? "0.1" : "0.01"}
+            min={unit === "mm" ? 10 : 0.4}
+            max={unit === "mm" ? 250 : 10}
+            value={displayH}
+            onChange={(e) => updateFromInput("h", e.target.value)}
+            className="w-24 bg-background"
           />
-          <span className="text-xs text-muted-foreground">H mm</span>
+          <span className="text-xs text-muted-foreground">H {unit}</span>
         </div>
         <Button onClick={() => onSave(value)} className="font-semibold">
           Save size
         </Button>
       </div>
 
-      <p className="text-[11px] text-muted-foreground mt-3">
-        Tip: open your printer settings in Windows → Devices &amp; Printers → right-click
-        the label printer → Printing Preferences and check the configured paper size.
-        Use exactly those numbers here.
-      </p>
+      <div className="mt-3 grid gap-1 text-[11px] text-muted-foreground">
+        <div>
+          <span className="font-semibold text-foreground">Equivalents:</span>{" "}
+          {fmtMm(value.widthMm)} × {fmtMm(value.heightMm)} mm &nbsp;•&nbsp;{" "}
+          {fmtIn(value.widthMm)} × {fmtIn(value.heightMm)} in
+        </div>
+        <div>
+          Tip: in <em>ZDesigner GK888t (EPL) → Printing Preferences → Options</em>, set
+          Stocks to <strong>User defined</strong>, Paper Format to{" "}
+          <strong>inch</strong>, Width <strong>3.20</strong>, Height{" "}
+          <strong>1.10</strong>, all Unprintable Area = 0, Portrait. Then pick the
+          matching preset above.
+        </div>
+      </div>
     </div>
   );
 }

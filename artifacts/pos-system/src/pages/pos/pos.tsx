@@ -436,7 +436,7 @@ export default function Pos() {
             className="h-7 px-2 text-xs text-white/70 hover:text-white"
             onClick={() => printDocument(`/invoice/${lastReceipt.id}`)}
           >
-            A4 Invoice
+            Invoice
           </Button>
         </div>
       )}

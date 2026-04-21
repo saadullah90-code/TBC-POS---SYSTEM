@@ -1,4 +1,9 @@
-import { silentPrintPdf, getAssignedPrinter, isBrowserDialogForced } from "./printer-bridge";
+import {
+  silentPrintPdf,
+  getAssignedPrinter,
+  isBrowserDialogForced,
+  getLabelDimensions,
+} from "./printer-bridge";
 import { renderBarcodeLabelsPdf, type LabelSpec } from "./pdf/barcode-pdf";
 import { printDocument } from "./print";
 
@@ -20,8 +25,14 @@ export async function silentPrintBarcodeLabels(
     return;
   }
   try {
+    const dims = getLabelDimensions();
     const pdf = await renderBarcodeLabelsPdf(labels, copies);
-    const result = await silentPrintPdf("barcode", pdf, { jobName: "barcode_labels" });
+    // Pass exact mm dimensions so QZ tells the printer driver the page size —
+    // critical for Zebra-class label printers that otherwise auto-rescale.
+    const result = await silentPrintPdf("barcode", pdf, {
+      jobName: "barcode_labels",
+      sizeMm: { width: dims.widthMm, height: dims.heightMm },
+    });
     if (!result.ok) {
       printDocument(fallbackUrl);
     }

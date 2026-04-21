@@ -1,17 +1,23 @@
 /**
- * Frontend client for the local printer bridge (`/api/print/*`).
+ * Frontend client for the QZ Tray printer bridge.
  *
  * Persists per-role printer assignments in localStorage so the cashier picks
  * the printer once in Settings, then every receipt and barcode prints silently
  * to the right device with no browser dialog.
+ *
+ * All silent printing now goes through QZ Tray (see `qz-bridge.ts`). The
+ * legacy `pdf-to-printer` API server bridge is no longer used — QZ Tray
+ * runs on the user's local PC and the browser talks to it directly, so
+ * silent printing works identically whether the API is local or in the cloud.
  */
 
 import {
-  listPrinters as listPrintersFn,
-  submitPrintJob as submitPrintJobFn,
-  type PrintersResponse,
-  type PrintJobResponse,
-} from "@workspace/api-client-react";
+  connectQz,
+  listQzPrinters,
+  printPdfViaQz,
+  getCurrentStatus as getQzStatus,
+  type QzStatus,
+} from "@/lib/qz-bridge";
 
 export type PrinterRole = "receipt" | "barcode";
 
@@ -105,15 +111,50 @@ export const MM_PER_INCH = 25.4;
 export const inchToMm = (inch: number): number => inch * MM_PER_INCH;
 export const mmToInch = (mm: number): number => mm / MM_PER_INCH;
 
+/**
+ * Settings page expects this shape — kept stable when we migrated from the
+ * pdf-to-printer API bridge to QZ Tray so the UI didn't need to change.
+ */
+export interface PrintersResponse {
+  available: boolean;
+  platform: string;
+  printers: { name: string; isDefault: boolean }[];
+  /** Surfaced for the new QZ-aware status banner. */
+  qzStatus: QzStatus;
+  /** Last error encountered talking to QZ Tray, if any. */
+  error?: string;
+}
+
 export async function fetchPrinters(): Promise<PrintersResponse> {
-  return listPrintersFn();
+  try {
+    await connectQz();
+    const printers = await listQzPrinters();
+    return {
+      available: true,
+      platform: "QZ Tray",
+      printers,
+      qzStatus: "connected",
+    };
+  } catch (err: unknown) {
+    const message =
+      (err as { message?: string } | null)?.message ||
+      (typeof err === "string" ? err : "QZ Tray not reachable");
+    return {
+      available: false,
+      platform: "QZ Tray",
+      printers: [],
+      qzStatus: getQzStatus(),
+      error: message,
+    };
+  }
 }
 
 /**
  * Send a generated PDF to the printer assigned to `role` and return whether
- * the bridge accepted the job. Returns `false` (without throwing) when:
+ * the QZ Tray bridge accepted the job. Returns `{ ok: false }` (without throwing)
+ * when:
  *   - the user has not assigned a printer for this role yet
- *   - the local bridge is not available (e.g. running in cloud preview)
+ *   - QZ Tray is not running on this machine
  *   - the assigned printer rejected the job
  *
  * Callers should fall back to the browser print dialog when this returns
@@ -122,8 +163,13 @@ export async function fetchPrinters(): Promise<PrintersResponse> {
 export async function silentPrintPdf(
   role: PrinterRole,
   pdfBytes: Uint8Array,
-  opts: { copies?: number; jobName?: string } = {},
-): Promise<{ ok: boolean; reason?: string; response?: PrintJobResponse }> {
+  opts: {
+    copies?: number;
+    jobName?: string;
+    /** When set, tells QZ exactly what physical page size to use (label printers). */
+    sizeMm?: { width: number; height: number };
+  } = {},
+): Promise<{ ok: boolean; reason?: string }> {
   if (isBrowserDialogForced()) {
     return { ok: false, reason: "browser-dialog-forced" };
   }
@@ -131,20 +177,19 @@ export async function silentPrintPdf(
   if (!printerName) {
     return { ok: false, reason: "no-printer-assigned" };
   }
-  const pdfBase64 = uint8ArrayToBase64(pdfBytes);
   try {
-    const response = await submitPrintJobFn({
-      printerName,
-      pdfBase64,
+    const pdfBase64 = uint8ArrayToBase64(pdfBytes);
+    await printPdfViaQz(printerName, pdfBase64, {
       copies: opts.copies ?? 1,
-      jobName: opts.jobName ?? null,
+      jobName: opts.jobName,
+      sizeMm: opts.sizeMm,
     });
-    return { ok: !!response.ok, response };
-  } catch (err: any) {
-    return {
-      ok: false,
-      reason: err?.error || err?.message || "Bridge call failed",
-    };
+    return { ok: true };
+  } catch (err: unknown) {
+    const reason =
+      (err as { message?: string } | null)?.message ||
+      (typeof err === "string" ? err : "QZ Tray print failed");
+    return { ok: false, reason };
   }
 }
 

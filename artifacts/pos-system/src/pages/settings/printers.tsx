@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Loader2,
   X,
+  Plug,
+  PlugZap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +38,12 @@ import {
   mmToInch,
   type LabelDimensions,
 } from "@/lib/printer-bridge";
+import {
+  connectQz,
+  disconnectQz,
+  subscribeQzStatus,
+  type QzStatus,
+} from "@/lib/qz-bridge";
 import { renderReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { renderBarcodeLabelsPdf } from "@/lib/pdf/barcode-pdf";
 
@@ -219,20 +227,36 @@ const ROLES = [
   {
     role: "receipt" as const,
     title: "Receipt Printer",
-    description: "80mm thermal slip — used for sales receipts after every transaction.",
+    description: "80mm thermal slip — used for sales receipts and customer invoices.",
     icon: Receipt,
   },
   {
     role: "barcode" as const,
     title: "Barcode / Label Printer",
-    description: "50×30mm sticker labels — used for product and size barcodes.",
+    description: "Sticker labels (Zebra GK888t etc) — used for product and size barcodes.",
     icon: Tag,
   },
 ];
 
 export default function PrintersSettings() {
   const { toast } = useToast();
-  const [version, setVersion] = useState(0); // bump to re-read localStorage after save
+  const [version, setVersion] = useState(0); // bump to re-read localStorage / re-query QZ
+
+  // Live QZ Tray status — updates whenever the websocket opens, closes, or errors.
+  const [qzStatus, setQzStatus] = useState<QzStatus>("idle");
+  const [qzError, setQzError] = useState<string | null>(null);
+  useEffect(() => {
+    const unsub = subscribeQzStatus((s, err) => {
+      setQzStatus(s);
+      setQzError(err);
+    });
+    // Kick off an initial connection attempt so the banner reflects reality
+    // immediately when the user lands on this page.
+    void connectQz().catch(() => {
+      /* error already surfaced via subscribeQzStatus */
+    });
+    return unsub;
+  }, []);
 
   const {
     data: bridge,
@@ -240,10 +264,10 @@ export default function PrintersSettings() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["printers", version],
+    queryKey: ["printers", version, qzStatus],
     queryFn: fetchPrinters,
     retry: false,
-    staleTime: 30_000,
+    staleTime: 15_000,
   });
 
   const [forceDialog, setForceDialog] = useState(false);
@@ -267,13 +291,32 @@ export default function PrintersSettings() {
     setVersion((v) => v + 1);
     toast({
       title: value === "__none__" ? "Printer cleared" : `Assigned ${value}`,
-      description: `Used for ${role === "receipt" ? "receipts" : "barcode labels"}.`,
+      description: `Used for ${role === "receipt" ? "receipts & invoices" : "barcode labels"}.`,
     });
   };
 
   const handleToggleForce = (next: boolean) => {
     setForceBrowserDialog(next);
     setForceDialog(next);
+    setVersion((v) => v + 1);
+  };
+
+  const handleConnect = async () => {
+    try {
+      await connectQz();
+      await refetch();
+      toast({ title: "Connected to QZ Tray", description: "Printer list refreshed." });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Could not reach QZ Tray",
+        description: err?.message || "Make sure QZ Tray is installed and running.",
+      });
+    }
+  };
+
+  const handleDisconnect = async () => {
+    await disconnectQz();
     setVersion((v) => v + 1);
   };
 
@@ -313,6 +356,7 @@ export default function PrintersSettings() {
 
   const handleTestBarcode = async () => {
     try {
+      const dims = getLabelDimensions();
       const pdf = await renderBarcodeLabelsPdf(
         [
           {
@@ -325,7 +369,10 @@ export default function PrintersSettings() {
         ],
         1,
       );
-      const result = await silentPrintPdf("barcode", pdf, { jobName: "test_label" });
+      const result = await silentPrintPdf("barcode", pdf, {
+        jobName: "test_label",
+        sizeMm: { width: dims.widthMm, height: dims.heightMm },
+      });
       if (result.ok) {
         toast({ title: "Test label sent", description: "Check your label printer." });
       } else {
@@ -346,6 +393,8 @@ export default function PrintersSettings() {
 
   const printers = bridge?.printers ?? [];
   const bridgeAvailable = bridge?.available ?? false;
+  const isConnected = qzStatus === "connected";
+  const isConnecting = qzStatus === "connecting";
 
   return (
     <div className="flex flex-col h-full bg-background p-8 space-y-6 overflow-y-auto">
@@ -363,7 +412,7 @@ export default function PrintersSettings() {
         <Button
           variant="outline"
           onClick={() => refetch()}
-          disabled={isFetching}
+          disabled={isFetching || isConnecting}
           className="font-semibold"
         >
           {isFetching ? (
@@ -375,62 +424,94 @@ export default function PrintersSettings() {
         </Button>
       </div>
 
-      {/* Bridge status */}
+      {/* QZ Tray connection status */}
       <div
         className={`flex items-start gap-3 p-4 rounded-lg border ${
-          bridgeAvailable
+          isConnected
             ? "border-emerald-500/30 bg-emerald-500/5"
+            : isConnecting
+            ? "border-blue-500/30 bg-blue-500/5"
             : "border-amber-500/30 bg-amber-500/5"
         }`}
       >
-        {bridgeAvailable ? (
+        {isConnected ? (
           <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
+        ) : isConnecting ? (
+          <Loader2 className="h-5 w-5 text-blue-500 mt-0.5 shrink-0 animate-spin" />
         ) : (
           <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
         )}
         <div className="flex-1 text-sm">
-          {isLoading ? (
-            <div className="text-muted-foreground">Checking local print bridge…</div>
-          ) : bridgeAvailable ? (
-            <>
-              <div className="font-semibold text-foreground">
-                Local print bridge is ready ({bridge?.platform})
-              </div>
+          {isConnecting || isLoading ? (
+            <div>
+              <div className="font-semibold text-foreground">Connecting to QZ Tray…</div>
               <div className="text-muted-foreground mt-0.5">
-                {printers.length} installed printer{printers.length === 1 ? "" : "s"} detected.
-                Assign one to each role below.
+                Talking to wss://localhost:8181 — accept the QZ Tray prompt if you see one.
               </div>
-            </>
+            </div>
+          ) : isConnected && bridgeAvailable ? (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="font-semibold text-foreground">QZ Tray Connected</div>
+                <div className="text-muted-foreground mt-0.5">
+                  {printers.length} installed printer{printers.length === 1 ? "" : "s"} detected.
+                  Assign one to each role below.
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleDisconnect()}
+                className="text-xs"
+              >
+                <Plug className="mr-1.5 h-3.5 w-3.5" />
+                Disconnect
+              </Button>
+            </div>
           ) : (
-            <>
-              <div className="font-semibold text-foreground">
-                Silent printing is unavailable on this machine
+            <div>
+              <div className="font-semibold text-foreground flex items-center gap-2">
+                QZ Tray Not Connected
+                <Badge variant="outline" className="border-amber-500/40 text-amber-500 text-[10px]">
+                  Silent printing offline
+                </Badge>
               </div>
               <div className="text-muted-foreground mt-1 space-y-2">
-                <p>
-                  The API server is running on <strong>{bridge?.platform || "unknown"}</strong>,
-                  which can&apos;t see your Zebra/thermal printer. Silent print needs the
-                  POS server to be running on the <strong>same Windows PC</strong> the
-                  printer is plugged into.
-                </p>
-                <p>
-                  <strong>If you opened this from a Replit URL</strong> (cloud preview),
-                  that&apos;s why — the cloud server has no access to your printer.
-                </p>
-                <div className="rounded-md border border-amber-500/40 bg-background p-3 text-xs">
-                  <div className="font-semibold text-foreground mb-1">To enable silent printing:</div>
-                  <ol className="list-decimal pl-4 space-y-0.5">
-                    <li>Download / clone this project onto your Windows POS PC.</li>
-                    <li>Run <code className="px-1 bg-secondary rounded">npm install</code> then <code className="px-1 bg-secondary rounded">npm run dev</code>.</li>
-                    <li>Open <code className="px-1 bg-secondary rounded">http://localhost</code> on that same PC and come back to this Settings page.</li>
+                {qzError && (
+                  <p className="text-xs font-mono bg-background border border-border rounded p-2">
+                    {qzError}
+                  </p>
+                )}
+                <div className="rounded-md border border-amber-500/40 bg-background p-3 text-xs space-y-2">
+                  <div className="font-semibold text-foreground">To enable true silent printing:</div>
+                  <ol className="list-decimal pl-4 space-y-1">
+                    <li>
+                      Download QZ Tray (free) from{" "}
+                      <a
+                        href="https://qz.io/download/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                      >
+                        qz.io/download
+                      </a>{" "}
+                      and install it on this Windows PC.
+                    </li>
+                    <li>Open QZ Tray — its icon should appear in the system tray near the clock.</li>
+                    <li>Plug in your Zebra and thermal receipt printer; install their drivers normally.</li>
+                    <li>Click <strong>Connect to QZ Tray</strong> below. The first time, click <strong>Allow</strong> (and tick "Remember") on the QZ Tray prompt.</li>
                   </ol>
                 </div>
-                <p>
-                  Until then, every print routes through the browser&apos;s print dialog
-                  using the label size you configure below.
-                </p>
+                <Button
+                  onClick={() => void handleConnect()}
+                  className="font-semibold"
+                  disabled={isConnecting}
+                >
+                  <PlugZap className="mr-2 h-4 w-4" />
+                  {isConnecting ? "Connecting…" : "Connect to QZ Tray"}
+                </Button>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -456,7 +537,7 @@ export default function PrintersSettings() {
                     {cfg.description}
                   </div>
                 </div>
-                {assigned && stillExists && (
+                {assigned && stillExists && isConnected && (
                   <Badge variant="outline" className="border-emerald-500/40 text-emerald-500">
                     Active
                   </Badge>
@@ -517,7 +598,7 @@ export default function PrintersSettings() {
                 type="button"
                 variant="outline"
                 onClick={cfg.role === "receipt" ? handleTestReceipt : handleTestBarcode}
-                disabled={!assigned}
+                disabled={!assigned || !isConnected}
                 className="w-full"
               >
                 <Printer className="mr-2 h-4 w-4" />

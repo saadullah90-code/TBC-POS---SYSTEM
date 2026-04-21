@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@workspace/api-client-react": "*",
-    "jspdf": "^4.2.1"
+    "jspdf": "^4.2.1",
+    "qz-tray": "^2.2.6"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -55,6 +55,14 @@ export interface LabelDimensions {
    * roll instead of leaving the right column blank.
    */
   duplicateOnRight?: boolean;
+  /**
+   * Manual X nudge (mm) for the RIGHT label only, mirroring offsetXMm. Use
+   * this when the gap between the two columns is not symmetrical and the
+   * right barcode lands off-centre even after the left one is perfect.
+   * Negative = move LEFT, positive = RIGHT. Leave undefined to auto-shift
+   * by the roll width (assumes symmetrical gap).
+   */
+  offsetXRightMm?: number;
 }
 
 export const DEFAULT_LABEL_DIMENSIONS: LabelDimensions = {
@@ -140,6 +148,7 @@ export function setLabelDimensions(dims: LabelDimensions) {
     offsetXMm: clampOff(dims.offsetXMm),
     offsetYMm: clampOff(dims.offsetYMm),
     duplicateOnRight: dims.duplicateOnRight ? true : undefined,
+    offsetXRightMm: clampOff(dims.offsetXRightMm),
   };
   writeAssignments(a);
 }

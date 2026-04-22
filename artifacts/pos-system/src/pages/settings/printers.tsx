@@ -92,7 +92,7 @@ function LabelSizeCard({
   const displayW = unit === "mm" ? fmtMm(value.widthMm) : fmtIn(value.widthMm);
   const displayH = unit === "mm" ? fmtMm(value.heightMm) : fmtIn(value.heightMm);
 
-  const updateFromInput = (which: "w" | "h" | "roll" | "ox" | "oy", raw: string) => {
+  const updateFromInput = (which: "w" | "h" | "roll" | "ox" | "oy" | "oxr", raw: string) => {
     const trimmed = raw.trim();
     const n = parseFloat(trimmed);
 
@@ -105,16 +105,21 @@ function LabelSizeCard({
       onChange({ ...value, offsetYMm: undefined });
       return;
     }
+    if (which === "oxr" && (trimmed === "" || trimmed === "-" || !Number.isFinite(n))) {
+      onChange({ ...value, offsetXRightMm: undefined });
+      return;
+    }
     if (which === "roll" && (!Number.isFinite(n) || n <= 0)) {
       onChange({ ...value, rollWidthMm: undefined });
       return;
     }
 
     // Offsets may be negative; widths must be positive.
-    if (which === "ox" || which === "oy") {
+    if (which === "ox" || which === "oy" || which === "oxr") {
       const mm = unit === "mm" ? n : inchToMm(n);
       if (which === "ox") onChange({ ...value, offsetXMm: mm });
-      else onChange({ ...value, offsetYMm: mm });
+      else if (which === "oy") onChange({ ...value, offsetYMm: mm });
+      else onChange({ ...value, offsetXRightMm: mm });
       return;
     }
 
@@ -140,6 +145,7 @@ function LabelSizeCard({
       : "";
   const displayOX = displayOffset(value.offsetXMm);
   const displayOY = displayOffset(value.offsetYMm);
+  const displayOXR = displayOffset(value.offsetXRightMm);
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -345,7 +351,29 @@ function LabelSizeCard({
             />
             <span className="text-xs text-muted-foreground">Y {unit}</span>
           </div>
+          {value.duplicateOnRight && value.rollWidthMm && value.rollWidthMm > value.widthMm && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Input
+                type="number"
+                step={unit === "mm" ? "0.5" : "0.05"}
+                min={unit === "mm" ? -100 : -4}
+                max={unit === "mm" ? 100 : 4}
+                placeholder={displayOX || "auto"}
+                value={displayOXR}
+                onChange={(e) => updateFromInput("oxr", e.target.value)}
+                className="w-24 bg-background"
+              />
+              <span className="text-xs text-muted-foreground">X-Right {unit}</span>
+            </div>
+          )}
         </div>
+        {value.duplicateOnRight && value.rollWidthMm && value.rollWidthMm > value.widthMm && (
+          <div className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+            <strong>X-Right</strong> only appears when "Print on RIGHT label too" is on.
+            Leave blank to mirror the left X automatically. Set it manually (e.g. <code>-0.1</code>)
+            if the right barcode lands off-centre even after the left one is perfect.
+          </div>
+        )}
       </div>
 
       <div className="mt-3 grid gap-1 text-[11px] text-muted-foreground">

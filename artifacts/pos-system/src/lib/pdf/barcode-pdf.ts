@@ -66,28 +66,48 @@ export async function renderBarcodeLabelsPdf(
   const offsetX = Number.isFinite(dims.offsetXMm) ? (dims.offsetXMm as number) : 0;
   const offsetY = Number.isFinite(dims.offsetYMm) ? (dims.offsetYMm as number) : 0;
   const isTwoUp = pageW > labelW + 0.5;
-  const duplicate = !!dims.duplicateOnRight && isTwoUp;
+  // Resolve right-column mode (with backwards compat for the older boolean).
+  const rightMode: "blank" | "duplicate" | "pack" = !isTwoUp
+    ? "blank"
+    : dims.rightColumnMode ?? (dims.duplicateOnRight ? "duplicate" : "blank");
   // For the RIGHT label, the user can either provide a manual nudge that
   // mirrors offsetXMm (giving full control) or leave it blank in which case
-  // we auto-shift by the gap between the two label centres (assumes
-  // symmetrical gap, which is true for most 2-up rolls).
+  // we auto-shift by the gap between the two label centres.
   const rightOffsetX = Number.isFinite(dims.offsetXRightMm)
     ? (dims.offsetXRightMm as number) + (pageW - labelW)
     : offsetX + (pageW - labelW);
 
-  let firstPage = true;
-
+  // Pre-render every barcode PNG once — used by all modes.
+  const items: Array<{ label: LabelSpec; dataUrl: string }> = [];
   for (const label of labels) {
     const dataUrl = await renderBarcodePng(label.barcode);
-
     for (let copy = 0; copy < copiesPerLabel; copy++) {
+      items.push({ label, dataUrl });
+    }
+  }
+
+  let firstPage = true;
+
+  if (rightMode === "pack") {
+    // Pack two DIFFERENT consecutive items per page (left + right). If the
+    // total is odd, the final page has only the left filled.
+    for (let i = 0; i < items.length; i += 2) {
       if (!firstPage) doc.addPage([pageW, pageH], orientation);
       firstPage = false;
-
-      // Left label.
+      const left = items[i];
+      drawLabel(doc, left.label, left.dataUrl, labelW, pageH, offsetX, offsetY);
+      const right = items[i + 1];
+      if (right) {
+        drawLabel(doc, right.label, right.dataUrl, labelW, pageH, rightOffsetX, offsetY);
+      }
+    }
+  } else {
+    // "blank" or "duplicate" → one item per page, optionally repeated on right.
+    for (const { label, dataUrl } of items) {
+      if (!firstPage) doc.addPage([pageW, pageH], orientation);
+      firstPage = false;
       drawLabel(doc, label, dataUrl, labelW, pageH, offsetX, offsetY);
-      // Right label (same content, shifted across the roll).
-      if (duplicate) {
+      if (rightMode === "duplicate") {
         drawLabel(doc, label, dataUrl, labelW, pageH, rightOffsetX, offsetY);
       }
     }

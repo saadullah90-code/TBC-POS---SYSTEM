@@ -53,8 +53,18 @@ export interface LabelDimensions {
    * For 2-up rolls only. When true, the SAME barcode is drawn on BOTH the
    * left AND right labels of each row — useful when you want to use the full
    * roll instead of leaving the right column blank.
+   * @deprecated use rightColumnMode instead. Kept for backwards compatibility
+   * with previously-saved settings.
    */
   duplicateOnRight?: boolean;
+  /**
+   * For 2-up rolls only. Controls what happens to the RIGHT column:
+   *  - "blank"     → right column stays empty (default)
+   *  - "duplicate" → same barcode as the left label
+   *  - "pack"      → next DIFFERENT label is packed onto the right, doubling
+   *                  the labels per row (most paper-efficient)
+   */
+  rightColumnMode?: "blank" | "duplicate" | "pack";
   /**
    * Manual X nudge (mm) for the RIGHT label only, mirroring offsetXMm. Use
    * this when the gap between the two columns is not symmetrical and the
@@ -148,6 +158,10 @@ export function setLabelDimensions(dims: LabelDimensions) {
     offsetXMm: clampOff(dims.offsetXMm),
     offsetYMm: clampOff(dims.offsetYMm),
     duplicateOnRight: dims.duplicateOnRight ? true : undefined,
+    rightColumnMode:
+      dims.rightColumnMode && dims.rightColumnMode !== "blank"
+        ? dims.rightColumnMode
+        : undefined,
     offsetXRightMm: clampOff(dims.offsetXRightMm),
   };
   writeAssignments(a);

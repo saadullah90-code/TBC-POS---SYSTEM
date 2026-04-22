@@ -283,33 +283,71 @@ function LabelSizeCard({
         </div>
       </div>
 
-      {/* Duplicate-on-right toggle (only meaningful for 2-up rolls) */}
-      {value.rollWidthMm && value.rollWidthMm > value.widthMm && (
-        <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!value.duplicateOnRight}
-              onChange={(e) => {
-                const next = { ...value, duplicateOnRight: e.target.checked };
-                onChange(next);
-                onSave(next);
-              }}
-              className="mt-1 h-4 w-4 accent-primary cursor-pointer"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-foreground">
-                Print same barcode on RIGHT label too (use both columns)
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                Turn this ON to fill BOTH stickers in each row with the same barcode —
-                doubles your output per roll. Leave OFF to print only the left column
-                (right stays blank).
-              </div>
+      {/* Right-column behaviour — only meaningful for 2-up rolls */}
+      {value.rollWidthMm && value.rollWidthMm > value.widthMm && (() => {
+        const currentMode: "blank" | "duplicate" | "pack" =
+          value.rightColumnMode ?? (value.duplicateOnRight ? "duplicate" : "blank");
+        const pick = (mode: "blank" | "duplicate" | "pack") => {
+          const next: typeof value = {
+            ...value,
+            rightColumnMode: mode === "blank" ? undefined : mode,
+            duplicateOnRight: mode === "duplicate",
+          };
+          onChange(next);
+          onSave(next);
+        };
+        const opts: Array<{ id: "blank" | "duplicate" | "pack"; title: string; desc: string }> = [
+          {
+            id: "blank",
+            title: "Left only (right stays blank)",
+            desc: "Default — only the left column gets a barcode, right column wasted.",
+          },
+          {
+            id: "duplicate",
+            title: "Same barcode on BOTH labels",
+            desc: "Both stickers in a row get the SAME barcode — doubles copies.",
+          },
+          {
+            id: "pack",
+            title: "Pack DIFFERENT labels side-by-side",
+            desc: "Two different labels per row (left + right) — most paper-efficient when printing many products at once.",
+          },
+        ];
+        return (
+          <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
+            <div className="text-xs font-semibold text-foreground mb-2">
+              Right-column behaviour (2-up roll)
             </div>
-          </label>
-        </div>
-      )}
+            <div className="grid gap-2">
+              {opts.map((o) => (
+                <label
+                  key={o.id}
+                  className={
+                    "flex items-start gap-3 cursor-pointer rounded-md border px-2.5 py-2 transition-colors " +
+                    (currentMode === o.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border/60 hover:bg-muted/50")
+                  }
+                >
+                  <input
+                    type="radio"
+                    name="rightColumnMode"
+                    checked={currentMode === o.id}
+                    onChange={() => pick(o.id)}
+                    className="mt-1 h-4 w-4 accent-primary cursor-pointer"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-foreground">{o.title}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      {o.desc}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Manual offset nudge */}
       <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">

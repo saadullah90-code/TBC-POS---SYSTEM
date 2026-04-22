@@ -277,6 +277,34 @@ function LabelSizeCard({
         </div>
       </div>
 
+      {/* Duplicate-on-right toggle (only meaningful for 2-up rolls) */}
+      {value.rollWidthMm && value.rollWidthMm > value.widthMm && (
+        <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!value.duplicateOnRight}
+              onChange={(e) => {
+                const next = { ...value, duplicateOnRight: e.target.checked };
+                onChange(next);
+                onSave(next);
+              }}
+              className="mt-1 h-4 w-4 accent-primary cursor-pointer"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-foreground">
+                Print same barcode on RIGHT label too (use both columns)
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                Turn this ON to fill BOTH stickers in each row with the same barcode —
+                doubles your output per roll. Leave OFF to print only the left column
+                (right stays blank).
+              </div>
+            </div>
+          </label>
+        </div>
+      )}
+
       {/* Manual offset nudge */}
       <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
         <div className="flex items-start gap-3 flex-wrap">

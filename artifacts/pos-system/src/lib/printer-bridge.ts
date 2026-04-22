@@ -49,6 +49,12 @@ export interface LabelDimensions {
    * Manual vertical nudge in mm. Negative shifts UP, positive DOWN.
    */
   offsetYMm?: number;
+  /**
+   * For 2-up rolls only. When true, the SAME barcode is drawn on BOTH the
+   * left AND right labels of each row — useful when you want to use the full
+   * roll instead of leaving the right column blank.
+   */
+  duplicateOnRight?: boolean;
 }
 
 export const DEFAULT_LABEL_DIMENSIONS: LabelDimensions = {
@@ -133,6 +139,7 @@ export function setLabelDimensions(dims: LabelDimensions) {
         : undefined,
     offsetXMm: clampOff(dims.offsetXMm),
     offsetYMm: clampOff(dims.offsetYMm),
+    duplicateOnRight: dims.duplicateOnRight ? true : undefined,
   };
   writeAssignments(a);
 }

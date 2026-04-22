@@ -65,6 +65,12 @@ export async function renderBarcodeLabelsPdf(
 
   const offsetX = Number.isFinite(dims.offsetXMm) ? (dims.offsetXMm as number) : 0;
   const offsetY = Number.isFinite(dims.offsetYMm) ? (dims.offsetYMm as number) : 0;
+  const isTwoUp = pageW > labelW + 0.5;
+  const duplicate = !!dims.duplicateOnRight && isTwoUp;
+  // Distance from the LEFT label centre to the RIGHT label centre. Assumes
+  // the gap between labels is symmetrical, which is true for standard 2-up
+  // rolls (e.g. 38mm + 5mm gap + 38mm).
+  const rightShift = pageW - labelW;
 
   let firstPage = true;
 
@@ -75,7 +81,12 @@ export async function renderBarcodeLabelsPdf(
       if (!firstPage) doc.addPage([pageW, pageH], orientation);
       firstPage = false;
 
+      // Left label.
       drawLabel(doc, label, dataUrl, labelW, pageH, offsetX, offsetY);
+      // Right label (same content, shifted across the roll).
+      if (duplicate) {
+        drawLabel(doc, label, dataUrl, labelW, pageH, offsetX + rightShift, offsetY);
+      }
     }
   }
 

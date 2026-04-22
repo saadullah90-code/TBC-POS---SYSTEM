@@ -245,6 +245,7 @@ export default function PrintersSettings() {
   // Live QZ Tray status — updates whenever the websocket opens, closes, or errors.
   const [qzStatus, setQzStatus] = useState<QzStatus>("idle");
   const [qzError, setQzError] = useState<string | null>(null);
+  const [showVirtual, setShowVirtual] = useState(false);
   useEffect(() => {
     const unsub = subscribeQzStatus((s, err) => {
       setQzStatus(s);
@@ -264,8 +265,8 @@ export default function PrintersSettings() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["printers", version, qzStatus],
-    queryFn: fetchPrinters,
+    queryKey: ["printers", version, qzStatus, showVirtual],
+    queryFn: () => fetchPrinters({ includeVirtual: showVirtual }),
     retry: false,
     staleTime: 15_000,
   });
@@ -565,6 +566,7 @@ export default function PrintersSettings() {
                         <SelectItem key={p.name} value={p.name}>
                           {p.name}
                           {p.isDefault ? " (system default)" : ""}
+                          {p.isVirtual ? " — virtual" : ""}
                         </SelectItem>
                       ))}
                       {assigned && !stillExists && (
@@ -611,6 +613,19 @@ export default function PrintersSettings() {
 
       {/* Label dimensions */}
       <LabelSizeCard value={labelDims} onSave={handleSaveLabelSize} onChange={setLabelDims} />
+
+      {/* Show virtual printers toggle */}
+      <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
+        <div className="flex-1">
+          <div className="font-semibold text-sm">Show virtual printers in the dropdown</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            By default we hide "Microsoft Print to PDF", "OneNote", "Fax", "XPS Document
+            Writer" and similar non-physical printers so the list stays short. Turn this
+            on if you actually need to pick one of them.
+          </div>
+        </div>
+        <Switch checked={showVirtual} onCheckedChange={setShowVirtual} />
+      </div>
 
       {/* Force-dialog override */}
       <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">

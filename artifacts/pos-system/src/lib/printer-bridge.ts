@@ -118,17 +118,19 @@ export const mmToInch = (mm: number): number => mm / MM_PER_INCH;
 export interface PrintersResponse {
   available: boolean;
   platform: string;
-  printers: { name: string; isDefault: boolean }[];
+  printers: { name: string; isDefault: boolean; isVirtual?: boolean }[];
   /** Surfaced for the new QZ-aware status banner. */
   qzStatus: QzStatus;
   /** Last error encountered talking to QZ Tray, if any. */
   error?: string;
 }
 
-export async function fetchPrinters(): Promise<PrintersResponse> {
+export async function fetchPrinters(
+  opts: { includeVirtual?: boolean } = {},
+): Promise<PrintersResponse> {
   try {
     await connectQz();
-    const printers = await listQzPrinters();
+    const printers = await listQzPrinters({ includeVirtual: opts.includeVirtual });
     return {
       available: true,
       platform: "QZ Tray",

@@ -18,9 +18,10 @@ import {
   User,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { printDocument } from "@/lib/print";
 import { ReceiptPrintDialog } from "@/components/receipt/receipt-print-dialog";
 import type { Sale } from "@workspace/api-client-react";
+import { silentPrintPdf, getAssignedPrinter } from "@/lib/printer-bridge";
+import { renderInvoicePdf } from "@/lib/pdf/invoice-pdf";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +57,7 @@ export default function Pos() {
   const [activeBarcode, setActiveBarcode] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
-  const [lastReceipt, setLastReceipt] = useState<{ id: number; total: number } | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<{ id: number; total: number; sale: Sale } | null>(null);
   const [receiptDialog, setReceiptDialog] = useState<{ sale: Sale; auto: boolean } | null>(null);
 
   const createSale = useCreateSale();
@@ -219,7 +220,7 @@ export default function Pos() {
         onSuccess: (sale) => {
           const total = sale.totalAmount;
           setCart([]);
-          setLastReceipt({ id: sale.id, total });
+          setLastReceipt({ id: sale.id, total, sale });
           setReceiptDialog({ sale, auto: true });
           toast({
             title: `Sale #${sale.id} completed`,
@@ -421,11 +422,11 @@ export default function Pos() {
             size="sm"
             className="h-7 px-2 text-xs text-white/70 hover:text-white"
             onClick={() => {
-              if (receiptDialog?.sale.id === lastReceipt.id) {
-                setReceiptDialog({ sale: receiptDialog.sale, auto: false });
-              } else {
-                printDocument(`/receipt/${lastReceipt.id}`);
-              }
+              // Always re-open the in-memory dialog with the full Sale object —
+              // never go through an iframe + API roundtrip (that path was
+              // printing blank pages when the print fired before the embedded
+              // page had finished fetching its data).
+              setReceiptDialog({ sale: lastReceipt.sale, auto: false });
             }}
           >
             Reprint
@@ -434,7 +435,42 @@ export default function Pos() {
             variant="ghost"
             size="sm"
             className="h-7 px-2 text-xs text-white/70 hover:text-white"
-            onClick={() => printDocument(`/invoice/${lastReceipt.id}`)}
+            onClick={async () => {
+              const sale = lastReceipt.sale;
+              try {
+                const pdf = renderInvoicePdf(sale);
+                const result = await silentPrintPdf("receipt", pdf, {
+                  jobName: `invoice_${sale.id}`,
+                  sizeMm: { width: 80, height: 297 },
+                });
+                if (result.ok) {
+                  toast({
+                    title: "Invoice sent to printer",
+                    description: `Printed silently to ${getAssignedPrinter("receipt")}.`,
+                  });
+                  return;
+                }
+                // No printer / QZ unavailable → open the PDF in a new tab so
+                // the cashier can still print from the browser's PDF viewer.
+                const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, "_blank");
+                if (!w) {
+                  toast({
+                    variant: "destructive",
+                    title: "Pop-up blocked",
+                    description: "Allow pop-ups to view the invoice PDF.",
+                  });
+                }
+                setTimeout(() => URL.revokeObjectURL(url), 60_000);
+              } catch (err: any) {
+                toast({
+                  variant: "destructive",
+                  title: "Could not generate invoice",
+                  description: err?.message || "Unknown error",
+                });
+              }
+            }}
           >
             Invoice
           </Button>

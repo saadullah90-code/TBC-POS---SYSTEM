@@ -154,14 +154,47 @@ export async function disconnectQz(): Promise<void> {
 interface QzPrinterInfo {
   name: string;
   isDefault: boolean;
+  /** True when the printer name matches a known Windows virtual / non-physical printer. */
+  isVirtual: boolean;
+}
+
+// Common Windows virtual printers that pollute the dropdown — PDF writers,
+// XPS, Fax, OneNote, "Send to" helpers, document image writers, etc. We hide
+// these by default and let Settings reveal them via a toggle.
+const VIRTUAL_PRINTER_PATTERNS: RegExp[] = [
+  /microsoft print to pdf/i,
+  /microsoft xps document writer/i,
+  /microsoft document image writer/i,
+  /^fax$/i,
+  /onenote/i,
+  /onenote for windows/i,
+  /send to onenote/i,
+  /snipping tool/i,
+  /snip\s*&\s*sketch/i,
+  /print to pdf/i,
+  /pdf(\s|-)?creator/i,
+  /cutepdf/i,
+  /foxit reader pdf printer/i,
+  /adobe pdf/i,
+  /web service for/i,
+];
+
+export function isVirtualPrinter(name: string): boolean {
+  return VIRTUAL_PRINTER_PATTERNS.some((re) => re.test(name));
 }
 
 /**
  * List installed printers reported by the OS to QZ Tray. Auto-connects
  * first and surfaces a clear error when QZ Tray is offline so the
  * caller can render a meaningful message.
+ *
+ * Pass `{ includeVirtual: true }` to include "Microsoft Print to PDF",
+ * "OneNote", "Fax", and similar non-physical printers (filtered out by
+ * default to keep the Settings dropdown short and physical-only).
  */
-export async function listQzPrinters(): Promise<QzPrinterInfo[]> {
+export async function listQzPrinters(
+  opts: { includeVirtual?: boolean } = {},
+): Promise<QzPrinterInfo[]> {
   await connectQz();
   const result = await qz.printers.find();
   const names: string[] = Array.isArray(result) ? result : result ? [result] : [];
@@ -174,7 +207,13 @@ export async function listQzPrinters(): Promise<QzPrinterInfo[]> {
     defaultName = null;
   }
 
-  return names.map((name) => ({ name, isDefault: name === defaultName }));
+  const all: QzPrinterInfo[] = names.map((name) => ({
+    name,
+    isDefault: name === defaultName,
+    isVirtual: isVirtualPrinter(name),
+  }));
+
+  return opts.includeVirtual ? all : all.filter((p) => !p.isVirtual);
 }
 
 export interface QzPdfPrintOptions {

@@ -40,7 +40,7 @@ export default function Invoice() {
       const pdf = renderInvoicePdf(sale);
       const result = await silentPrintPdf("receipt", pdf, {
         jobName: `invoice_${sale.id}`,
-        sizeMm: { width: 80, height: 297 }, // 80mm wide; height grows with content
+        sizeMm: { width: 72, height: 297 }, // 72mm = 80mm thermal printable area; height grows with content
       });
       if (result.ok) {
         setSilentSent(true);

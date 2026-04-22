@@ -12,9 +12,15 @@ import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import type { Sale } from "@workspace/api-client-react";
 
+// 80mm thermal printers have ~72mm printable area (3-4mm unprintable strip
+// on each side). Sizing the PDF to the FULL 80mm causes content on the right
+// to be clipped because the printer driver centres the page on the print
+// head. 72mm fits inside the printable area on every 80mm thermal we tested.
+const PAGE_WIDTH_MM = 72;
+
 export function renderInvoicePdf(sale: Sale): Uint8Array {
-  const pageWidth = 80; // mm
-  const margin = 4;
+  const pageWidth = PAGE_WIDTH_MM; // mm
+  const margin = 3;
   const innerWidth = pageWidth - margin * 2;
 
   const itemRows = sale.items.reduce((acc, it) => {

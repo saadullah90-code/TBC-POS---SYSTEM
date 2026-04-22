@@ -53,13 +53,13 @@ export default function Receipt() {
   return (
     <div className="receipt-root bg-white text-black">
       <style>{`
-        @page { size: 80mm auto; margin: 0; }
+        @page { size: 72mm auto; margin: 0; }
         @media print {
           html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
           .no-print { display: none !important; }
         }
         .receipt-root {
-          width: 80mm;
+          width: 72mm;
           padding: 4mm 4mm 6mm;
           margin: 0 auto;
           font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;

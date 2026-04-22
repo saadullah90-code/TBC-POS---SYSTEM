@@ -14,7 +14,7 @@ export function ReceiptSlip({ sale }: { sale: Sale }) {
     <div className="receipt-slip">
       <style>{`
         .receipt-slip {
-          width: 80mm;
+          width: 72mm;
           padding: 4mm 4mm 6mm;
           margin: 0 auto;
           background: #fff;

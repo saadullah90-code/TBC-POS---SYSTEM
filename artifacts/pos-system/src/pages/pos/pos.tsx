@@ -441,7 +441,7 @@ export default function Pos() {
                 const pdf = renderInvoicePdf(sale);
                 const result = await silentPrintPdf("receipt", pdf, {
                   jobName: `invoice_${sale.id}`,
-                  sizeMm: { width: 80, height: 297 },
+                  sizeMm: { width: 72, height: 297 },
                 });
                 if (result.ok) {
                   toast({

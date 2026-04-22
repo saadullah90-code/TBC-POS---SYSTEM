@@ -5,24 +5,27 @@ import type { Sale } from "@workspace/api-client-react";
 /**
  * Render an 80mm thermal receipt to a PDF and return its bytes.
  *
- * Page is FIXED at 80 × 297 mm so every receipt comes out of the thermal
- * printer at the same size — no driver guessing, no surprise paper-cut
- * positions, no "preview blank" issues. Printable area is the inner 72 mm
- * (4 mm margin each side), matching the standard 80 mm thermal roll.
+ * Width is fixed at 80 mm (printable area = inner 72 mm). Height is
+ * dynamic — the page is exactly as long as the content needs, just like
+ * the Windows printer test page. This avoids wasting thermal roll paper
+ * on blank trailing space.
  *
  * Layout mirrors the on-screen <ReceiptSlip /> component so what the cashier
  * sees in the preview is what comes out of the thermal printer.
  */
 export function renderReceiptPdf(sale: Sale): Uint8Array {
   const pageWidth = 80; // mm
-  const pageHeight = 297; // mm (fixed — driver expects this exact page size)
   const margin = 4;
   const innerWidth = pageWidth - margin * 2; // 72 mm printable
   const lineHeight = 3.6; // mm per line @ ~10pt mono
 
+  // We don't know the final height until we've laid the content out, so
+  // render to a tall scratch page first, track the cursor, then re-render
+  // into a final page sized to (cursor + bottom margin).
+  const SCRATCH_HEIGHT = 1000; // mm — generous upper bound
   const doc = new jsPDF({
     unit: "mm",
-    format: [pageWidth, pageHeight],
+    format: [pageWidth, SCRATCH_HEIGHT],
     orientation: "portrait",
   });
 
@@ -125,6 +128,17 @@ export function renderReceiptPdf(sale: Sale): Uint8Array {
   });
   y += 4;
   doc.text("* * * * *", pageWidth / 2, y + 1, { align: "center" });
+  y += margin + 2; // bottom padding before the cut line
+
+  // Trim the scratch page down to the cursor — jsPDF supports runtime
+  // page-size mutation via `internal.pageSize`. This makes the PDF page
+  // exactly as tall as the content (no trailing blank thermal paper).
+  const finalHeight = Math.max(60, y); // never shorter than 60 mm
+  const internalAny = doc.internal as unknown as {
+    pageSize: { height: number; setHeight?: (h: number) => void };
+  };
+  internalAny.pageSize.height = finalHeight;
+  internalAny.pageSize.setHeight?.(finalHeight);
 
   return new Uint8Array(doc.output("arraybuffer"));
 }

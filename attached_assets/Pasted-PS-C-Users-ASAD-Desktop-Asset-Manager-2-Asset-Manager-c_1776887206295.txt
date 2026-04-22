@@ -1,0 +1,105 @@
+PS C:\Users\ASAD\Desktop\Asset-Manager (2)\Asset-Manager> cd "C:\Users\ASAD\Desktop"
+PS C:\Users\ASAD\Desktop> git clone https://github.com/saadullah90-code/TBC-
+remote: Enumerating objects: 1034, done.
+remote: Counting objects: 100% (1034/1034), done.
+remote: Compressing objects: 100% (383/383), done.
+remote: Total 1034 (delta 615), reused 1032 (delta 613), pack-reused 0 (from 0)
+Receiving objects: 100% (1034/1034), 3.62 MiB | 524.00 KiB/s, done.
+Resolving deltas: 100% (615/615), done.
+PS C:\Users\ASAD\Desktop> cd TBC-POS---SYSTEM
+PS C:\Users\ASAD\Desktop\TBC-POS---SYSTEM> npm install
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 575 packages, and audited 584 packages in 1m
+
+  run `npm fund` for details
+
+4 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+PS C:\Users\ASAD\Desktop\TBC-POS---SYSTEM> npm run dev
+
+> branx-pos@1.0.0 dev
+> concurrently --names "API,WEB" --prefix-colors "cyan,magenta" --kill-others-on-fail "npm run dev --workspace @workspace/api-server" "npm run dev --workspace @workspace/pos-system"
+
+[API] 
+[API] > @workspace/api-server@1.0.0 dev
+[API] > npm run build && npm run start
+[API] 
+[WEB] 
+[WEB] > @workspace/pos-system@1.0.0 dev
+[WEB] > vite --config vite.config.ts --host 0.0.0.0
+[WEB] 
+[API] 
+[API] > @workspace/api-server@1.0.0 build
+[API] > node ./build.mjs
+[API] 
+[WEB] 
+[WEB]   VITE v7.3.2  ready in 5794 ms
+[WEB] 
+[WEB]   ➜  Local:   http://localhost:5173/
+[WEB]   ➜  Network: http://192.168.100.183:5173/
+[API] 
+[API]   dist\index.mjs                   2.3mb
+[API]   dist\pino-worker.mjs           150.9kb
+[API]   dist\pino-file.mjs             139.9kb
+[API]   dist\pino-pretty.mjs           111.6kb
+[API]   dist\thread-stream-worker.mjs    7.1kb
+[API]   ...and 5 more output files...
+[API] 
+[API] Done in 5892ms
+[API] 
+[API] > @workspace/api-server@1.0.0 start
+[API] > node --enable-source-maps ./dist/index.mjs
+[API] 
+[API] C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\lib\db\src\index.ts:12
+[API]   throw new Error(
+[API]         ^
+[API] 
+[API] 
+[API] Error: SUPABASE_DATABASE_URL or DATABASE_URL must be set. Did you forget to provision a database?
+[API]     at <anonymous> (C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\lib\db\src\index.ts:12:9)
+[API]     at ModuleJob.run (node:internal/modules/esm/module_job:272:25)
+[API]     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:583:26)
+[API]     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:98:5)
+[API] 
+[API] Node.js v23.7.0
+[API] npm error Lifecycle script `start` failed with error:
+[API] npm error code 1
+[API] npm error path C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\artifacts\api-server
+[API] npm error workspace @workspace/api-server@1.0.0
+[API] npm error location C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\artifacts\api-server
+[API] npm error command failed
+[API] npm error command C:\Windows\system32\cmd.exe /d /s /c node --enable-source-maps ./dist/index.mjs
+[API] npm error Lifecycle script `dev` failed with error:
+[API] npm error path C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\artifacts\api-server
+[API] npm error workspace @workspace/api-server@1.0.0
+[API] npm error location C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\artifacts\api-server
+[API] npm error command failed
+[API] npm error command C:\Windows\system32\cmd.exe /d /s /c npm run build && npm run start
+[API] npm run dev --workspace @workspace/api-server exited with code 1
+--> Sending SIGTERM to other processes..
+[WEB] npm run dev --workspace @workspace/pos-system exited with code 1
+PS C:\Users\ASAD\Desktop\TBC-POS---SYSTEM> npm run db:push
+
+> branx-pos@1.0.0 db:push
+> npm run push --workspace @workspace/db
+
+
+> @workspace/db@1.0.0 push
+> drizzle-kit push --config ./drizzle.config.ts
+
+Reading config file 'C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\lib\db\drizzle.config.ts'
+SUPABASE_DATABASE_URL or DATABASE_URL must be set, ensure the database is provisioned
+npm error Lifecycle script `push` failed with error:
+npm error code 1
+npm error path C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\lib\db
+npm error workspace @workspace/db@1.0.0
+npm error location C:\Users\ASAD\Desktop\TBC-POS---SYSTEM\lib\db
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c drizzle-kit push --config ./drizzle.config.ts
+PS C:\Users\ASAD\Desktop\TBC-POS---SYSTEM> 

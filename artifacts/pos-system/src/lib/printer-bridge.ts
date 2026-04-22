@@ -38,6 +38,17 @@ export interface LabelDimensions {
    * Leave undefined (or equal to widthMm) for plain single-column rolls.
    */
   rollWidthMm?: number;
+  /**
+   * Manual horizontal nudge in mm applied to the rendered content. Negative
+   * values shift content LEFT, positive RIGHT. Useful when the printer driver
+   * centres the page on the print head and the content lands on the gap
+   * between two labels — bump this until the barcode lands on the sticker.
+   */
+  offsetXMm?: number;
+  /**
+   * Manual vertical nudge in mm. Negative shifts UP, positive DOWN.
+   */
+  offsetYMm?: number;
 }
 
 export const DEFAULT_LABEL_DIMENSIONS: LabelDimensions = {
@@ -111,6 +122,8 @@ export function setLabelDimensions(dims: LabelDimensions) {
   // labels to drift across the perforation.
   const round2 = (n: number) => Math.round(n * 100) / 100;
   const widthMm = Math.max(10, Math.min(250, round2(dims.widthMm)));
+  const clampOff = (n: number | undefined) =>
+    Number.isFinite(n) && n !== 0 ? Math.max(-100, Math.min(100, round2(n as number))) : undefined;
   a.labelDimensions = {
     widthMm,
     heightMm: Math.max(10, Math.min(250, round2(dims.heightMm))),
@@ -118,6 +131,8 @@ export function setLabelDimensions(dims: LabelDimensions) {
       dims.rollWidthMm && dims.rollWidthMm > widthMm
         ? Math.max(widthMm, Math.min(300, round2(dims.rollWidthMm)))
         : undefined,
+    offsetXMm: clampOff(dims.offsetXMm),
+    offsetYMm: clampOff(dims.offsetYMm),
   };
   writeAssignments(a);
 }

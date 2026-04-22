@@ -102,7 +102,9 @@ function LabelSizeCard({
     const mm = unit === "mm" ? n : inchToMm(n);
     if (which === "w") onChange({ ...value, widthMm: mm });
     else if (which === "h") onChange({ ...value, heightMm: mm });
-    else onChange({ ...value, rollWidthMm: mm });
+    else if (which === "roll") onChange({ ...value, rollWidthMm: mm });
+    else if (which === "ox") onChange({ ...value, offsetXMm: unit === "mm" ? n : inchToMm(n) });
+    else if (which === "oy") onChange({ ...value, offsetYMm: unit === "mm" ? n : inchToMm(n) });
   };
 
   const displayRoll =
@@ -111,6 +113,15 @@ function LabelSizeCard({
         ? fmtMm(value.rollWidthMm)
         : fmtIn(value.rollWidthMm)
       : "";
+
+  const displayOffset = (mm: number | undefined) =>
+    Number.isFinite(mm) && mm !== 0
+      ? unit === "mm"
+        ? fmtMm(mm as number)
+        : fmtIn(mm as number)
+      : "";
+  const displayOX = displayOffset(value.offsetXMm);
+  const displayOY = displayOffset(value.offsetYMm);
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -244,6 +255,49 @@ function LabelSizeCard({
               className="w-24 bg-background"
             />
             <span className="text-xs text-muted-foreground">Roll {unit}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Manual offset nudge */}
+      <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
+        <div className="flex items-start gap-3 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <div className="text-xs font-semibold text-foreground">
+              Manual print position nudge
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              If the barcode lands on the gap or wrong sticker, shift it here.
+              <strong> Negative X = move LEFT</strong>, positive X = right.
+              <strong> Negative Y = move UP</strong>, positive Y = down.
+              Try -20 mm (or -0.8 in) first if printing on the right column / gap.
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Input
+              type="number"
+              step={unit === "mm" ? "0.5" : "0.05"}
+              min={unit === "mm" ? -100 : -4}
+              max={unit === "mm" ? 100 : 4}
+              placeholder="0"
+              value={displayOX}
+              onChange={(e) => updateFromInput("ox", e.target.value)}
+              className="w-24 bg-background"
+            />
+            <span className="text-xs text-muted-foreground">X {unit}</span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Input
+              type="number"
+              step={unit === "mm" ? "0.5" : "0.05"}
+              min={unit === "mm" ? -100 : -4}
+              max={unit === "mm" ? 100 : 4}
+              placeholder="0"
+              value={displayOY}
+              onChange={(e) => updateFromInput("oy", e.target.value)}
+              className="w-24 bg-background"
+            />
+            <span className="text-xs text-muted-foreground">Y {unit}</span>
           </div>
         </div>
       </div>

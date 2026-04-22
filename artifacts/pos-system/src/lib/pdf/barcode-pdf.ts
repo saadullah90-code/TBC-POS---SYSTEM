@@ -63,6 +63,9 @@ export async function renderBarcodeLabelsPdf(
     orientation,
   });
 
+  const offsetX = Number.isFinite(dims.offsetXMm) ? (dims.offsetXMm as number) : 0;
+  const offsetY = Number.isFinite(dims.offsetYMm) ? (dims.offsetYMm as number) : 0;
+
   let firstPage = true;
 
   for (const label of labels) {
@@ -72,7 +75,7 @@ export async function renderBarcodeLabelsPdf(
       if (!firstPage) doc.addPage([pageW, pageH], orientation);
       firstPage = false;
 
-      drawLabel(doc, label, dataUrl, labelW, pageH);
+      drawLabel(doc, label, dataUrl, labelW, pageH, offsetX, offsetY);
     }
   }
 
@@ -89,12 +92,14 @@ function drawLabel(
   barcodeDataUrl: string,
   pageW: number,
   pageH: number,
+  offsetX: number = 0,
+  offsetY: number = 0,
 ) {
   // Generous safety margin from the perforated edges on all sides.
   const marginX = Math.max(1.2, pageW * 0.04);
-  const marginY = Math.max(1.0, pageH * 0.05);
+  const marginY = Math.max(1.0, pageH * 0.05) + offsetY;
   const innerW = pageW - marginX * 2;
-  const cx = pageW / 2;
+  const cx = pageW / 2 + offsetX;
 
   // Scale typography to the label height so 30mm and 60mm rolls both look right.
   const baseScale = Math.min(pageW, pageH) / 30; // 1.0 at 30mm

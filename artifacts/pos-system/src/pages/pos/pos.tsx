@@ -441,7 +441,9 @@ export default function Pos() {
                 const pdf = renderInvoicePdf(sale);
                 const result = await silentPrintPdf("receipt", pdf, {
                   jobName: `invoice_${sale.id}`,
-                  sizeMm: { width: 72, height: 297 },
+                  // No sizeMm — let the printer driver use its native 80mm
+                  // paper. The PDF matches it exactly so no scaling happens
+                  // and the right edge isn't clipped.
                 });
                 if (result.ok) {
                   toast({

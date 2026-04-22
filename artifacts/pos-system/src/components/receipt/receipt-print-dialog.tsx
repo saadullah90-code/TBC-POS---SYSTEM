@@ -45,7 +45,7 @@ export function ReceiptPrintDialog({ sale, open, onClose, autoPrint }: Props) {
       const pdf = renderReceiptPdf(sale);
       const result = await silentPrintPdf("receipt", pdf, {
         jobName: `receipt_${sale.id}`,
-        sizeMm: { width: 72, height: 297 },
+        // No sizeMm — driver uses its native 80mm paper, PDF matches it.
       });
       if (result.ok) {
         setSilentSent(true);

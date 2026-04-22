@@ -13,11 +13,16 @@ import type { Sale } from "@workspace/api-client-react";
  * Layout mirrors the on-screen <ReceiptSlip /> component so what the cashier
  * sees in the preview is what comes out of the thermal printer.
  */
-// 80mm thermal printers have ~72mm printable area (3-4mm unprintable strip
-// on each side). Sizing the PDF to the FULL 80mm causes content on the right
-// to be clipped because the printer driver centres the page on the print
-// head. 72mm fits inside the printable area on every 80mm thermal we tested.
-const PAGE_WIDTH_MM = 72;
+// PDF page width MUST match the physical paper width (80mm) — otherwise the
+// thermal printer driver scales the PDF to fit its configured paper, which
+// stretches content past the printable area and clips the right edge.
+//
+// With page = 80mm and margin = 5mm, content sits in the centre 70mm strip
+// which is well inside every 80mm thermal printer's ~72mm printable area.
+// The 5mm margins act as a built-in safety zone for the unprintable strips
+// on the left and right edges of the paper.
+const PAGE_WIDTH_MM = 80;
+const PAGE_MARGIN_MM = 5;
 
 export function renderReceiptPdf(sale: Sale): Uint8Array {
   const pageWidth = PAGE_WIDTH_MM; // mm
@@ -45,7 +50,7 @@ export function renderReceiptPdf(sale: Sale): Uint8Array {
 /** Draws the receipt on `doc` and returns the final cursor Y (in mm). */
 function drawReceipt(doc: jsPDF, sale: Sale): number {
   const pageWidth = PAGE_WIDTH_MM;
-  const margin = 3;
+  const margin = PAGE_MARGIN_MM;
   const innerWidth = pageWidth - margin * 2;
   const lineHeight = 3.6;
 

@@ -3,6 +3,7 @@ import {
   getAssignedPrinter,
   isBrowserDialogForced,
   getLabelDimensions,
+  getPageWidthMm,
 } from "./printer-bridge";
 import { renderBarcodeLabelsPdf, type LabelSpec } from "./pdf/barcode-pdf";
 import { printDocument } from "./print";
@@ -53,9 +54,11 @@ export async function silentPrintBarcodeLabels(
     const pdf = await renderBarcodeLabelsPdf(labels, copies);
     // Pass exact mm dimensions so QZ tells the printer driver the page size —
     // critical for Zebra-class label printers that otherwise auto-rescale.
+    // Use the effective page width (full roll for 2-up labels) so the print
+    // head lands on the correct sticker, not the gap.
     const result = await silentPrintPdf("barcode", pdf, {
       jobName: "barcode_labels",
-      sizeMm: { width: dims.widthMm, height: dims.heightMm },
+      sizeMm: { width: getPageWidthMm(dims), height: dims.heightMm },
     });
     if (result.ok) {
       toast({

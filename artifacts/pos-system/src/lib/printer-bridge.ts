@@ -28,6 +28,16 @@ export interface LabelDimensions {
   widthMm: number;
   /** Physical sticker height in mm. */
   heightMm: number;
+  /**
+   * Total roll width in mm INCLUDING any unused right-hand label and the gap
+   * between columns. Set this when your label roll has 2 columns of stickers
+   * side-by-side (2-up media) — content will be drawn on the LEFT label only,
+   * but the page format will fill the whole roll so the print head's centred
+   * position lands on the left sticker instead of the gap.
+   *
+   * Leave undefined (or equal to widthMm) for plain single-column rolls.
+   */
+  rollWidthMm?: number;
 }
 
 export const DEFAULT_LABEL_DIMENSIONS: LabelDimensions = {
@@ -100,11 +110,27 @@ export function setLabelDimensions(dims: LabelDimensions) {
   // breaks the 1:1 match with thermal-printer driver pages and is what causes
   // labels to drift across the perforation.
   const round2 = (n: number) => Math.round(n * 100) / 100;
+  const widthMm = Math.max(10, Math.min(250, round2(dims.widthMm)));
   a.labelDimensions = {
-    widthMm: Math.max(10, Math.min(250, round2(dims.widthMm))),
+    widthMm,
     heightMm: Math.max(10, Math.min(250, round2(dims.heightMm))),
+    rollWidthMm:
+      dims.rollWidthMm && dims.rollWidthMm > widthMm
+        ? Math.max(widthMm, Math.min(300, round2(dims.rollWidthMm)))
+        : undefined,
   };
   writeAssignments(a);
+}
+
+/**
+ * Effective page width to send to the printer. For 2-up rolls this is the
+ * full roll width (so the print head lands on the left sticker); for normal
+ * rolls it equals the single label width.
+ */
+export function getPageWidthMm(dims: LabelDimensions = getLabelDimensions()): number {
+  return dims.rollWidthMm && dims.rollWidthMm > dims.widthMm
+    ? dims.rollWidthMm
+    : dims.widthMm;
 }
 
 export const MM_PER_INCH = 25.4;

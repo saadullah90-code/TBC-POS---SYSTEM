@@ -92,13 +92,25 @@ function LabelSizeCard({
   const displayW = unit === "mm" ? fmtMm(value.widthMm) : fmtIn(value.widthMm);
   const displayH = unit === "mm" ? fmtMm(value.heightMm) : fmtIn(value.heightMm);
 
-  const updateFromInput = (which: "w" | "h", raw: string) => {
+  const updateFromInput = (which: "w" | "h" | "roll", raw: string) => {
     const n = parseFloat(raw);
+    if (which === "roll" && (!Number.isFinite(n) || n <= 0)) {
+      onChange({ ...value, rollWidthMm: undefined });
+      return;
+    }
     if (!Number.isFinite(n) || n <= 0) return;
     const mm = unit === "mm" ? n : inchToMm(n);
     if (which === "w") onChange({ ...value, widthMm: mm });
-    else onChange({ ...value, heightMm: mm });
+    else if (which === "h") onChange({ ...value, heightMm: mm });
+    else onChange({ ...value, rollWidthMm: mm });
   };
+
+  const displayRoll =
+    value.rollWidthMm && value.rollWidthMm > value.widthMm
+      ? unit === "mm"
+        ? fmtMm(value.rollWidthMm)
+        : fmtIn(value.rollWidthMm)
+      : "";
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -205,11 +217,49 @@ function LabelSizeCard({
         </Button>
       </div>
 
+      {/* 2-up / multi-column roll support */}
+      <div className="mt-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-3">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-foreground">
+              2-up label roll? (2 stickers side-by-side)
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              If your roll has TWO columns of stickers, enter the <strong>total roll width</strong>{" "}
+              (left label + gap + right label). The barcode will print on the LEFT sticker;
+              the right column stays blank. Leave empty for normal single-column rolls.
+              <br />
+              <em>Also set the same width in your printer driver's Page Size.</em>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Input
+              type="number"
+              step={unit === "mm" ? "0.1" : "0.01"}
+              min={0}
+              max={unit === "mm" ? 300 : 12}
+              placeholder="off"
+              value={displayRoll}
+              onChange={(e) => updateFromInput("roll", e.target.value)}
+              className="w-24 bg-background"
+            />
+            <span className="text-xs text-muted-foreground">Roll {unit}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-3 grid gap-1 text-[11px] text-muted-foreground">
         <div>
           <span className="font-semibold text-foreground">Equivalents:</span>{" "}
           {fmtMm(value.widthMm)} × {fmtMm(value.heightMm)} mm &nbsp;•&nbsp;{" "}
           {fmtIn(value.widthMm)} × {fmtIn(value.heightMm)} in
+          {value.rollWidthMm && value.rollWidthMm > value.widthMm && (
+            <>
+              {" "}&nbsp;•&nbsp; <span className="font-semibold text-primary">
+                Roll: {fmtIn(value.rollWidthMm)} in / {fmtMm(value.rollWidthMm)} mm
+              </span>
+            </>
+          )}
         </div>
         <div>
           Tip: in <em>ZDesigner GK888t (EPL) → Printing Preferences → Options</em>, set

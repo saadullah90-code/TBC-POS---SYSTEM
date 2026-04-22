@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import bwipjs from "bwip-js/browser";
-import { getLabelDimensions, type LabelDimensions } from "@/lib/printer-bridge";
+import { getLabelDimensions, getPageWidthMm, type LabelDimensions } from "@/lib/printer-bridge";
 
 export interface LabelSpec {
   name: string;
@@ -47,7 +47,11 @@ export async function renderBarcodeLabelsPdf(
   const dims = opts.dimensions ?? getLabelDimensions();
   const copiesPerLabel = Math.max(1, Math.floor(opts.copiesPerLabel ?? copiesPerLabelArg ?? 1));
 
-  const pageW = dims.widthMm;
+  // Page format = full roll width (covers 2-up rolls); content is laid out
+  // only inside the LEFT `labelW × pageH` region so it lands on the left
+  // sticker. For plain single-column rolls pageW === labelW (no offset).
+  const labelW = dims.widthMm;
+  const pageW = getPageWidthMm(dims);
   const pageH = dims.heightMm;
   // Pick orientation based on the actual aspect ratio so jsPDF never silently
   // swaps the dimensions on us. Page bounds will be exactly pageW × pageH.
@@ -68,7 +72,7 @@ export async function renderBarcodeLabelsPdf(
       if (!firstPage) doc.addPage([pageW, pageH], orientation);
       firstPage = false;
 
-      drawLabel(doc, label, dataUrl, pageW, pageH);
+      drawLabel(doc, label, dataUrl, labelW, pageH);
     }
   }
 

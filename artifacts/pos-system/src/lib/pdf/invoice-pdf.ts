@@ -16,10 +16,11 @@ import type { Sale } from "@workspace/api-client-react";
 // thermal printer driver scales the PDF to fit its configured paper, which
 // stretches content past the printable area and clips the right edge.
 //
-// With page = 80mm and margin = 5mm, content sits in the centre 70mm strip
-// which is well inside every 80mm thermal printer's ~72mm printable area.
+// Margin is intentionally generous (8mm each side → 64mm content strip)
+// to guarantee no clipping on printers with smaller printable areas.
+// See receipt-pdf.ts for the full reasoning.
 const PAGE_WIDTH_MM = 80;
-const PAGE_MARGIN_MM = 5;
+const PAGE_MARGIN_MM = 8;
 
 export function renderInvoicePdf(sale: Sale): Uint8Array {
   const pageWidth = PAGE_WIDTH_MM; // mm

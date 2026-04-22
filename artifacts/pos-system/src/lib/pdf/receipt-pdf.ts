@@ -17,12 +17,15 @@ import type { Sale } from "@workspace/api-client-react";
 // thermal printer driver scales the PDF to fit its configured paper, which
 // stretches content past the printable area and clips the right edge.
 //
-// With page = 80mm and margin = 5mm, content sits in the centre 70mm strip
-// which is well inside every 80mm thermal printer's ~72mm printable area.
-// The 5mm margins act as a built-in safety zone for the unprintable strips
-// on the left and right edges of the paper.
+// Margin is intentionally generous (8mm each side → 64mm content strip).
+// Real-world 80mm thermal printers vary wildly in printable area:
+//   - Best case: ~72mm printable (4mm strip each side)
+//   - Worst case: ~64-66mm printable (some Epson/Bixolon drivers reserve
+//     up to 8mm for the cutter / sensor track)
+// The 8mm margin guarantees every model prints the full content without
+// clipping the right edge, at a small cost in paper density.
 const PAGE_WIDTH_MM = 80;
-const PAGE_MARGIN_MM = 5;
+const PAGE_MARGIN_MM = 8;
 
 export function renderReceiptPdf(sale: Sale): Uint8Array {
   const pageWidth = PAGE_WIDTH_MM; // mm

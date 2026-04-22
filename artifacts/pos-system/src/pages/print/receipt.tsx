@@ -60,7 +60,7 @@ export default function Receipt() {
         }
         .receipt-root {
           width: 80mm;
-          padding: 4mm 5mm 6mm 5mm;
+          padding: 4mm 8mm 6mm 8mm;
           margin: 0 auto;
           font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
           font-size: 11px;

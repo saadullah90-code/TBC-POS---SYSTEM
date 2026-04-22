@@ -6,28 +6,42 @@ import type { Sale } from "@workspace/api-client-react";
  * Render an 80mm thermal receipt to a PDF and return its bytes.
  *
  * Width is fixed at 80 mm (printable area = inner 72 mm). Height is
- * dynamic — the page is exactly as long as the content needs, just like
- * the Windows printer test page. This avoids wasting thermal roll paper
- * on blank trailing space.
+ * dynamic — the page is exactly as long as the content needs. We do this
+ * with a two-pass render: a measure pass to compute the cursor's final Y,
+ * then a real pass on a page sized to (cursor + bottom margin).
  *
  * Layout mirrors the on-screen <ReceiptSlip /> component so what the cashier
  * sees in the preview is what comes out of the thermal printer.
  */
 export function renderReceiptPdf(sale: Sale): Uint8Array {
   const pageWidth = 80; // mm
-  const margin = 4;
-  const innerWidth = pageWidth - margin * 2; // 72 mm printable
-  const lineHeight = 3.6; // mm per line @ ~10pt mono
 
-  // We don't know the final height until we've laid the content out, so
-  // render to a tall scratch page first, track the cursor, then re-render
-  // into a final page sized to (cursor + bottom margin).
-  const SCRATCH_HEIGHT = 1000; // mm — generous upper bound
-  const doc = new jsPDF({
+  // Pass 1 — measure on a tall scratch page (output discarded).
+  const measureDoc = new jsPDF({
     unit: "mm",
-    format: [pageWidth, SCRATCH_HEIGHT],
+    format: [pageWidth, 1000],
     orientation: "portrait",
   });
+  const measuredHeight = drawReceipt(measureDoc, sale);
+
+  // Pass 2 — real render on the right-sized page.
+  const finalHeight = Math.max(60, measuredHeight);
+  const doc = new jsPDF({
+    unit: "mm",
+    format: [pageWidth, finalHeight],
+    orientation: "portrait",
+  });
+  drawReceipt(doc, sale);
+
+  return new Uint8Array(doc.output("arraybuffer"));
+}
+
+/** Draws the receipt on `doc` and returns the final cursor Y (in mm). */
+function drawReceipt(doc: jsPDF, sale: Sale): number {
+  const pageWidth = 80;
+  const margin = 4;
+  const innerWidth = pageWidth - margin * 2;
+  const lineHeight = 3.6;
 
   let y = margin + 1;
 
@@ -66,21 +80,18 @@ export function renderReceiptPdf(sale: Sale): Uint8Array {
   // ---- Items ----
   doc.setFontSize(8);
   for (const it of sale.items) {
-    // Product name + size badge
     doc.setFont("helvetica", "bold");
     const nameText = it.size ? `${it.productName}  [SIZE ${it.size}]` : it.productName;
     const nameLines = doc.splitTextToSize(nameText, innerWidth);
     doc.text(nameLines, margin, y + 2.5);
     y += nameLines.length * 3.2 + 0.5;
 
-    // Barcode
     doc.setFont("courier", "normal");
     doc.setFontSize(7);
     doc.setTextColor(80);
     doc.text(it.barcode, margin, y + 2);
     y += 3;
 
-    // Qty x price ............... subtotal
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(0);
@@ -123,24 +134,12 @@ export function renderReceiptPdf(sale: Sale): Uint8Array {
   doc.text("Thank you for shopping with us!", pageWidth / 2, y + 1, { align: "center" });
   y += 3;
   doc.setTextColor(80);
-  doc.text("Returns within 30 days with this receipt", pageWidth / 2, y + 1, {
-    align: "center",
-  });
+  doc.text("Returns within 30 days with this receipt", pageWidth / 2, y + 1, { align: "center" });
   y += 4;
   doc.text("* * * * *", pageWidth / 2, y + 1, { align: "center" });
-  y += margin + 2; // bottom padding before the cut line
+  y += margin + 2;
 
-  // Trim the scratch page down to the cursor — jsPDF supports runtime
-  // page-size mutation via `internal.pageSize`. This makes the PDF page
-  // exactly as tall as the content (no trailing blank thermal paper).
-  const finalHeight = Math.max(60, y); // never shorter than 60 mm
-  const internalAny = doc.internal as unknown as {
-    pageSize: { height: number; setHeight?: (h: number) => void };
-  };
-  internalAny.pageSize.height = finalHeight;
-  internalAny.pageSize.setHeight?.(finalHeight);
-
-  return new Uint8Array(doc.output("arraybuffer"));
+  return y;
 }
 
 function drawDashedLine(doc: jsPDF, x1: number, y: number, x2: number) {
@@ -174,4 +173,3 @@ function formatPKR(amount: number) {
     })
   );
 }
-

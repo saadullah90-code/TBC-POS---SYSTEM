@@ -334,22 +334,28 @@
 
   /*
    * When the receipt dialog is open we want ONLY the slip on paper.
-   * `body.print-receipt-only` is toggled by <ReceiptPrintDialog/>. We hide
-   * everything except the slip, then unhide the slip and its ancestors.
+   * `body.print-receipt-only` is toggled by <ReceiptPrintDialog/>.
+   *
+   * We use the visibility trick (not display:none) because the dialog renders
+   * deep inside <div id="root">, not as a direct child of <body>. Hiding
+   * #root would also hide the slip. Instead we hide every visible pixel,
+   * then re-reveal just the slip and pin it to the top-left of the page.
    */
-  body.print-receipt-only > *:not(.receipt-print-portal) { display: none !important; }
-  body.print-receipt-only .receipt-print-portal,
-  body.print-receipt-only .receipt-print-portal * { visibility: visible !important; }
-  body.print-receipt-only .receipt-print-portal {
-    position: static !important;
-    inset: auto !important;
-    background: white !important;
-    backdrop-filter: none !important;
-    display: block !important;
+  body.print-receipt-only { visibility: hidden !important; }
+  body.print-receipt-only .receipt-slip,
+  body.print-receipt-only .receipt-slip * {
+    visibility: visible !important;
   }
-  body.print-receipt-only .receipt-print-portal .no-print { display: none !important; }
   body.print-receipt-only .receipt-slip {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     margin: 0 !important;
+    padding: 4mm 4mm 6mm !important;
+    width: 80mm !important;
+    background: white !important;
     box-shadow: none !important;
+    color: black !important;
+    z-index: 99999 !important;
   }
 }

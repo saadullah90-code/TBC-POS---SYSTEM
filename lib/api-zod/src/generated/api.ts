@@ -405,6 +405,14 @@ export const CreateSaleBody = zod.object({
 
 
 /**
+ * @summary Delete ALL sales history (admin only). Inventory is NOT restocked.
+ */
+export const ClearSalesResponse = zod.object({
+  "deleted": zod.number().describe('Number of sale records deleted')
+})
+
+
+/**
  * @summary Get sale by ID (for invoice)
  */
 export const GetSaleParams = zod.object({

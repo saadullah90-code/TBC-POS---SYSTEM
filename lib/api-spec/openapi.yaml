@@ -515,6 +515,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: clearSales
+      tags: [sales]
+      summary: Delete ALL sales history (admin only). Inventory is NOT restocked.
+      responses:
+        "200":
+          description: Sales cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                    description: Number of sale records deleted
+                required: [deleted]
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden — admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /sales/{id}:
     get:

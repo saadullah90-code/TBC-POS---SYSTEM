@@ -241,6 +241,11 @@ export const ListSalesPeriod = {
   all: 'all',
 } as const;
 
+export type ClearSales200 = {
+  /** Number of sale records deleted */
+  deleted: number;
+};
+
 export type GetDashboardSummaryParams = {
 period?: GetDashboardSummaryPeriod;
 };

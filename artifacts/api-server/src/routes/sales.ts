@@ -189,6 +189,32 @@ router.post("/sales", async (req, res): Promise<void> => {
   res.status(201).json(formatSale(sale, cashier?.name ?? null));
 });
 
+/**
+ * Wipe ALL sales records. Admin-only. Used by the "Clear Sale History"
+ * button on the Sales History page. This does NOT restock inventory —
+ * stock that was decremented at sale time stays decremented (clearing
+ * history is a bookkeeping reset, not an order reversal).
+ */
+router.delete("/sales", async (req, res): Promise<void> => {
+  const userId = req.session.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  if (user.role !== "admin") {
+    res.status(403).json({ error: "Admin role required to clear sales history" });
+    return;
+  }
+
+  const deleted = await db.delete(salesTable).returning({ id: salesTable.id });
+  res.json({ deleted: deleted.length });
+});
+
 router.get("/sales/:id", async (req, res): Promise<void> => {
   const params = GetSaleParams.safeParse(req.params);
   if (!params.success) {

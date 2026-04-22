@@ -7,6 +7,7 @@
  */
 
 export * from './authResponse';
+export * from './clearSales200';
 export * from './createProductBody';
 export * from './createProductVariantBody';
 export * from './createSaleBody';

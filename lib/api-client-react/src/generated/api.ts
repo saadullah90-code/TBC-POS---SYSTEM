@@ -21,6 +21,7 @@ import type {
 
 import type {
   AuthResponse,
+  ClearSales200,
   CreateProductBody,
   CreateProductVariantBody,
   CreateSaleBody,
@@ -1772,6 +1773,76 @@ export const useCreateSale = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateSaleMutationOptions(options));
+    }
+
+/**
+ * @summary Delete ALL sales history (admin only). Inventory is NOT restocked.
+ */
+export const getClearSalesUrl = () => {
+
+
+
+
+  return `/api/sales`
+}
+
+export const clearSales = async ( options?: RequestInit): Promise<ClearSales200> => {
+
+  return customFetch<ClearSales200>(getClearSalesUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getClearSalesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSales>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearSales>>, TError,void, TContext> => {
+
+const mutationKey = ['clearSales'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearSales>>, void> = () => {
+
+
+          return  clearSales(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearSalesMutationResult = NonNullable<Awaited<ReturnType<typeof clearSales>>>
+
+    export type ClearSalesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete ALL sales history (admin only). Inventory is NOT restocked.
+ */
+export const useClearSales = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearSales>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearSales>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClearSalesMutationOptions(options));
     }
 
 /**

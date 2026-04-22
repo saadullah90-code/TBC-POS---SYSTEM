@@ -1,7 +1,18 @@
 import { useState } from "react";
-import { useListSales, ListSalesPeriod, Sale } from "@workspace/api-client-react";
+import {
+  useListSales,
+  useClearSales,
+  useGetCurrentUser,
+  ListSalesPeriod,
+  Sale,
+  getListSalesQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getGetSalesChartQueryKey,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { SaleDetailsDialog } from "@/components/sales/sale-details-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 import {
   Table,
@@ -18,15 +29,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Eye, SearchX } from "lucide-react";
+import { Loader2, Eye, SearchX, Trash2 } from "lucide-react";
 
 export default function Sales() {
   const [period, setPeriod] = useState<ListSalesPeriod>("today");
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useGetCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
 
   const { data: sales, isLoading } = useListSales({ period });
+
+  const clearSales = useClearSales({
+    mutation: {
+      onSuccess: (data) => {
+        // Refresh every view that depends on sales data so totals reset to 0
+        // immediately without a page reload.
+        queryClient.invalidateQueries({ queryKey: getListSalesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetSalesChartQueryKey() });
+        toast({
+          title: "Sales history cleared",
+          description: `Removed ${data.deleted} sale${data.deleted === 1 ? "" : "s"}. Inventory was not restocked.`,
+        });
+        setConfirmClearOpen(false);
+      },
+      onError: (err: unknown) => {
+        const message =
+          (err as { message?: string } | null)?.message || "Failed to clear sales history.";
+        toast({ title: "Error", description: message, variant: "destructive" });
+      },
+    },
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -42,17 +90,31 @@ export default function Sales() {
           <h2 className="text-3xl font-bold tracking-tight">Sales History</h2>
           <p className="text-muted-foreground mt-1">View past transactions.</p>
         </div>
-        <Select value={period} onValueChange={(v) => setPeriod(v as ListSalesPeriod)}>
-          <SelectTrigger className="w-[180px] bg-card font-medium">
-            <SelectValue placeholder="Period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => setConfirmClearOpen(true)}
+              disabled={!sales || sales.length === 0 || clearSales.isPending}
+              data-testid="button-clear-sales"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Sale History
+            </Button>
+          )}
+          <Select value={period} onValueChange={(v) => setPeriod(v as ListSalesPeriod)}>
+            <SelectTrigger className="w-[180px] bg-card font-medium">
+              <SelectValue placeholder="Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex-1 rounded-lg border border-border bg-card overflow-hidden flex flex-col shadow-sm">
@@ -144,6 +206,43 @@ export default function Sales() {
         open={!!selectedSale}
         onClose={() => setSelectedSale(null)}
       />
+
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all sale history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>every</strong> sale record and reset all
+              dashboard totals to zero. Inventory stock counts will <strong>not</strong> be
+              restored. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearSales.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                clearSales.mutate();
+              }}
+              disabled={clearSales.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-clear-sales"
+            >
+              {clearSales.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Yes, clear everything
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -92,19 +92,37 @@ function LabelSizeCard({
   const displayW = unit === "mm" ? fmtMm(value.widthMm) : fmtIn(value.widthMm);
   const displayH = unit === "mm" ? fmtMm(value.heightMm) : fmtIn(value.heightMm);
 
-  const updateFromInput = (which: "w" | "h" | "roll", raw: string) => {
-    const n = parseFloat(raw);
+  const updateFromInput = (which: "w" | "h" | "roll" | "ox" | "oy", raw: string) => {
+    const trimmed = raw.trim();
+    const n = parseFloat(trimmed);
+
+    // Allow clearing offsets and roll width by leaving the input empty.
+    if (which === "ox" && (trimmed === "" || trimmed === "-" || !Number.isFinite(n))) {
+      onChange({ ...value, offsetXMm: undefined });
+      return;
+    }
+    if (which === "oy" && (trimmed === "" || trimmed === "-" || !Number.isFinite(n))) {
+      onChange({ ...value, offsetYMm: undefined });
+      return;
+    }
     if (which === "roll" && (!Number.isFinite(n) || n <= 0)) {
       onChange({ ...value, rollWidthMm: undefined });
       return;
     }
+
+    // Offsets may be negative; widths must be positive.
+    if (which === "ox" || which === "oy") {
+      const mm = unit === "mm" ? n : inchToMm(n);
+      if (which === "ox") onChange({ ...value, offsetXMm: mm });
+      else onChange({ ...value, offsetYMm: mm });
+      return;
+    }
+
     if (!Number.isFinite(n) || n <= 0) return;
     const mm = unit === "mm" ? n : inchToMm(n);
     if (which === "w") onChange({ ...value, widthMm: mm });
     else if (which === "h") onChange({ ...value, heightMm: mm });
     else if (which === "roll") onChange({ ...value, rollWidthMm: mm });
-    else if (which === "ox") onChange({ ...value, offsetXMm: unit === "mm" ? n : inchToMm(n) });
-    else if (which === "oy") onChange({ ...value, offsetYMm: unit === "mm" ? n : inchToMm(n) });
   };
 
   const displayRoll =

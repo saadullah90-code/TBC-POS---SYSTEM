@@ -48,7 +48,7 @@ function drawReceipt(doc: jsPDF, sale: Sale): number {
   // ---- Brand header (centered) ----
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("Brand Studio", pageWidth / 2, y + 4, { align: "center" });
+  doc.text("De Luxury Boutique", pageWidth / 2, y + 4, { align: "center" });
   y += 6;
 
   doc.setFont("helvetica", "normal");

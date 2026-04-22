@@ -83,7 +83,7 @@ export default function Receipt() {
       `}</style>
 
       <div className="center">
-        <div className="brand">Brand Studio</div>
+        <div className="brand">De Luxury Boutique</div>
         <div className="small muted">Retail Excellence</div>
         <div className="small muted">123 Commerce St., Karachi</div>
         <div className="small muted">Tel: (021) 1234-567</div>

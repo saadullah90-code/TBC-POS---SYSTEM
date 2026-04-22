@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: branx-pos
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false

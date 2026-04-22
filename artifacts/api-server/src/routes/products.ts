@@ -64,31 +64,47 @@ async function loadVariantsByProductIds(
   return map;
 }
 
+/**
+ * Brand prefix for every barcode. "DLB" = De Luxury Boutique. Stickers
+ * printed for the shop will show e.g. `DLB-482931`, which scans cleanly with
+ * any CODE128-capable barcode reader and looks professional on the shelf.
+ *
+ * If the shop ever rebrands, change this single constant — every NEW barcode
+ * picks up the new prefix automatically. Old barcodes keep working since
+ * uniqueness is checked at generation time and scanners read whatever is
+ * stored in the DB.
+ */
+const BARCODE_PREFIX = "DLB";
+
+/** 6-digit random tail (100000–999999) keeps barcodes a consistent width. */
+function randomBarcodeTail(): string {
+  return String(100000 + Math.floor(Math.random() * 900000));
+}
+
+async function isBarcodeTaken(barcode: string): Promise<boolean> {
+  const [p] = await db.select().from(productsTable).where(eq(productsTable.barcode, barcode));
+  if (p) return true;
+  const [v] = await db
+    .select()
+    .from(productVariantsTable)
+    .where(eq(productVariantsTable.barcode, barcode));
+  return !!v;
+}
+
 async function generateUniqueProductBarcode(): Promise<string> {
   while (true) {
-    const num = 1000 + Math.floor(Math.random() * 9000);
-    const barcode = `PROD-${num}`;
-    const [a] = await db.select().from(productsTable).where(eq(productsTable.barcode, barcode));
-    if (a) continue;
-    const [b] = await db
-      .select()
-      .from(productVariantsTable)
-      .where(eq(productVariantsTable.barcode, barcode));
-    if (!b) return barcode;
+    const barcode = `${BARCODE_PREFIX}-${randomBarcodeTail()}`;
+    if (!(await isBarcodeTaken(barcode))) return barcode;
   }
 }
 
 async function generateUniqueVariantBarcode(): Promise<string> {
+  // Variants share the same DLB-XXXXXX format as products — the prefix
+  // identifies the boutique, and the system tracks variant vs. base SKU
+  // internally via `productVariantId`. No need for a "VAR-" prefix.
   while (true) {
-    const num = 1000 + Math.floor(Math.random() * 9000);
-    const barcode = `VAR-${num}`;
-    const [a] = await db
-      .select()
-      .from(productVariantsTable)
-      .where(eq(productVariantsTable.barcode, barcode));
-    if (a) continue;
-    const [b] = await db.select().from(productsTable).where(eq(productsTable.barcode, barcode));
-    if (!b) return barcode;
+    const barcode = `${BARCODE_PREFIX}-${randomBarcodeTail()}`;
+    if (!(await isBarcodeTaken(barcode))) return barcode;
   }
 }
 

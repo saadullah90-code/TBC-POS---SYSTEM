@@ -12,24 +12,24 @@ import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import type { Sale } from "@workspace/api-client-react";
 
-// PDF page width MUST match the physical paper width (80mm) — otherwise the
-// thermal printer driver scales the PDF to fit its configured paper, which
-// stretches content past the printable area and clips the right edge.
-//
-// Margin is intentionally generous (8mm each side → 64mm content strip)
-// to guarantee no clipping on printers with smaller printable areas.
-// See receipt-pdf.ts for the full reasoning.
+// PDF page width matches the physical 80mm paper. Margins are ASYMMETRIC to
+// compensate for the typical right-shift of 80mm thermal print heads — see
+// the long comment in receipt-pdf.ts for the full reasoning.
 const PAGE_WIDTH_MM = 80;
-const PAGE_MARGIN_MM = 8;
+const MARGIN_LEFT_MM = 4;
+const MARGIN_RIGHT_MM = 12;
 
 export function renderInvoicePdf(sale: Sale): Uint8Array {
   const pageWidth = PAGE_WIDTH_MM; // mm
-  const margin = PAGE_MARGIN_MM;
-  const innerWidth = pageWidth - margin * 2;
+  const leftMargin = MARGIN_LEFT_MM;
+  const rightMargin = MARGIN_RIGHT_MM;
+  const innerWidth = pageWidth - leftMargin - rightMargin;
+  const rightEdge = pageWidth - rightMargin;
+  const centerX = leftMargin + innerWidth / 2;
 
   const itemRows = sale.items.reduce((acc, it) => {
     const len = (it.size ? it.productName.length + 8 : it.productName.length) + 2;
-    return acc + (len > 36 ? 2 : 1) + 2;
+    return acc + (len > 30 ? 2 : 1) + 2;
   }, 0);
   const headerHeight = 30;
   const footerHeight = 22;
@@ -46,30 +46,30 @@ export function renderInvoicePdf(sale: Sale): Uint8Array {
     orientation: "portrait",
   });
 
-  let y = margin + 1;
+  let y = 6;
 
   // ---- Brand header (centered) ----
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("De Luxury Boutique", pageWidth / 2, y + 4, { align: "center" });
+  doc.text("De Luxury Boutique", centerX, y + 4, { align: "center" });
   y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(80);
-  doc.text("Retail Excellence", pageWidth / 2, y + 1, { align: "center" });
-  doc.text("123 Commerce St., Karachi", pageWidth / 2, y + 4, { align: "center" });
-  doc.text("Tel: (021) 1234-567", pageWidth / 2, y + 7, { align: "center" });
+  doc.text("Retail Excellence", centerX, y + 1, { align: "center" });
+  doc.text("123 Commerce St., Karachi", centerX, y + 4, { align: "center" });
+  doc.text("Tel: (021) 1234-567", centerX, y + 7, { align: "center" });
   y += 9;
 
   // Document type — what makes this an invoice rather than a receipt.
   doc.setTextColor(0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("CUSTOMER INVOICE", pageWidth / 2, y + 4, { align: "center" });
+  doc.text("CUSTOMER INVOICE", centerX, y + 4, { align: "center" });
   y += 6;
 
-  drawDashedLine(doc, margin, y, pageWidth - margin);
+  drawDashedLine(doc, leftMargin, y, rightEdge);
   y += 2;
 
   // ---- Meta rows ----
@@ -77,7 +77,7 @@ export function renderInvoicePdf(sale: Sale): Uint8Array {
   doc.setFont("helvetica", "normal");
   drawRow(
     doc,
-    margin,
+    leftMargin,
     y,
     innerWidth,
     "Invoice #",
@@ -85,16 +85,16 @@ export function renderInvoicePdf(sale: Sale): Uint8Array {
     true,
   );
   y += 3.6;
-  drawRow(doc, margin, y, innerWidth, "Date", format(new Date(sale.createdAt), "dd MMM yyyy"));
+  drawRow(doc, leftMargin, y, innerWidth, "Date", format(new Date(sale.createdAt), "dd MMM yyyy"));
   y += 3.6;
-  drawRow(doc, margin, y, innerWidth, "Time", format(new Date(sale.createdAt), "hh:mm a"));
+  drawRow(doc, leftMargin, y, innerWidth, "Time", format(new Date(sale.createdAt), "hh:mm a"));
   y += 3.6;
-  drawRow(doc, margin, y, innerWidth, "Cashier", sale.cashierName || `User #${sale.cashierId}`);
+  drawRow(doc, leftMargin, y, innerWidth, "Cashier", sale.cashierName || `User #${sale.cashierId}`);
   y += 3.6;
-  drawRow(doc, margin, y, innerWidth, "Customer", sale.customerName || "Walk-in", true);
+  drawRow(doc, leftMargin, y, innerWidth, "Customer", sale.customerName || "Walk-in", true);
   y += 3.6 + 1;
 
-  drawDashedLine(doc, margin, y, pageWidth - margin);
+  drawDashedLine(doc, leftMargin, y, rightEdge);
   y += 2;
 
   // ---- Items ----
@@ -103,13 +103,13 @@ export function renderInvoicePdf(sale: Sale): Uint8Array {
     doc.setFont("helvetica", "bold");
     const nameText = it.size ? `${it.productName}  [SIZE ${it.size}]` : it.productName;
     const nameLines = doc.splitTextToSize(nameText, innerWidth);
-    doc.text(nameLines, margin, y + 2.5);
+    doc.text(nameLines, leftMargin, y + 2.5);
     y += nameLines.length * 3.2 + 0.5;
 
     doc.setFont("courier", "normal");
     doc.setFontSize(7);
     doc.setTextColor(80);
-    doc.text(it.barcode, margin, y + 2);
+    doc.text(it.barcode, leftMargin, y + 2);
     y += 3;
 
     doc.setFont("helvetica", "normal");
@@ -117,7 +117,7 @@ export function renderInvoicePdf(sale: Sale): Uint8Array {
     doc.setTextColor(0);
     drawRow(
       doc,
-      margin,
+      leftMargin,
       y,
       innerWidth,
       `${it.quantity} x ${formatPKR(it.price)}`,
@@ -127,38 +127,38 @@ export function renderInvoicePdf(sale: Sale): Uint8Array {
     y += 3.6 + 1.5;
   }
 
-  drawDashedLine(doc, margin, y, pageWidth - margin);
+  drawDashedLine(doc, leftMargin, y, rightEdge);
   y += 2;
 
   // ---- Totals ----
   doc.setFontSize(8);
-  drawRow(doc, margin, y, innerWidth, "Subtotal", formatPKR(sale.totalAmount));
+  drawRow(doc, leftMargin, y, innerWidth, "Subtotal", formatPKR(sale.totalAmount));
   y += 3.6;
-  drawRow(doc, margin, y, innerWidth, "Tax (0%)", formatPKR(0));
+  drawRow(doc, leftMargin, y, innerWidth, "Tax (0%)", formatPKR(0));
   y += 3.6 + 1;
 
-  drawDashedLine(doc, margin, y, pageWidth - margin);
+  drawDashedLine(doc, leftMargin, y, rightEdge);
   y += 2;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  drawRow(doc, margin, y, innerWidth, "TOTAL", formatPKR(sale.totalAmount));
+  drawRow(doc, leftMargin, y, innerWidth, "TOTAL", formatPKR(sale.totalAmount));
   y += 6;
 
-  drawDashedLine(doc, margin, y, pageWidth - margin);
+  drawDashedLine(doc, leftMargin, y, rightEdge);
   y += 3;
 
   // ---- Footer ----
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text("Thank you for your business!", pageWidth / 2, y + 1, { align: "center" });
+  doc.text("Thank you for your business!", centerX, y + 1, { align: "center" });
   y += 3;
   doc.setTextColor(80);
-  doc.text("Returns within 30 days with this invoice.", pageWidth / 2, y + 1, {
+  doc.text("Returns within 30 days with this invoice.", centerX, y + 1, {
     align: "center",
   });
   y += 4;
-  doc.text("This is an official BranX* invoice", pageWidth / 2, y + 1, { align: "center" });
+  doc.text("This is an official BranX* invoice", centerX, y + 1, { align: "center" });
 
   return new Uint8Array(doc.output("arraybuffer"));
 }

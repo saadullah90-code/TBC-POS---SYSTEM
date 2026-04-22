@@ -45,6 +45,7 @@ export function ReceiptPrintDialog({ sale, open, onClose, autoPrint }: Props) {
       const pdf = renderReceiptPdf(sale);
       const result = await silentPrintPdf("receipt", pdf, {
         jobName: `receipt_${sale.id}`,
+        sizeMm: { width: 80, height: 297 },
       });
       if (result.ok) {
         setSilentSent(true);
@@ -55,17 +56,27 @@ export function ReceiptPrintDialog({ sale, open, onClose, autoPrint }: Props) {
         // Close shortly after — the slip is already on its way.
         setTimeout(onClose, 700);
       } else {
-        // Fall back to the browser print dialog (keeps the UX working even
-        // when the bridge is offline or no printer has been assigned yet).
-        window.print();
+        // No printer assigned / QZ unavailable → open the PDF in a new tab so
+        // the cashier can print from the browser's PDF viewer at the exact
+        // 80 × 297 mm size (no CSS guesswork, no blank pages).
+        const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const w = window.open(url, "_blank");
+        if (!w) {
+          toast({
+            variant: "destructive",
+            title: "Pop-up blocked",
+            description: "Allow pop-ups for this site so the receipt PDF can open.",
+          });
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
     } catch (err: any) {
       toast({
         variant: "destructive",
-        title: "Print failed",
-        description: err?.message || "Falling back to browser dialog.",
+        title: "Could not generate receipt",
+        description: err?.message || "Unknown error",
       });
-      window.print();
     } finally {
       setPrinting(false);
     }

@@ -5,26 +5,20 @@ import type { Sale } from "@workspace/api-client-react";
 /**
  * Render an 80mm thermal receipt to a PDF and return its bytes.
  *
+ * Page is FIXED at 80 × 297 mm so every receipt comes out of the thermal
+ * printer at the same size — no driver guessing, no surprise paper-cut
+ * positions, no "preview blank" issues. Printable area is the inner 72 mm
+ * (4 mm margin each side), matching the standard 80 mm thermal roll.
+ *
  * Layout mirrors the on-screen <ReceiptSlip /> component so what the cashier
- * sees in the preview is what comes out of the thermal printer. The page width
- * is fixed at 80mm; height grows with the number of items.
+ * sees in the preview is what comes out of the thermal printer.
  */
 export function renderReceiptPdf(sale: Sale): Uint8Array {
   const pageWidth = 80; // mm
+  const pageHeight = 297; // mm (fixed — driver expects this exact page size)
   const margin = 4;
-  const innerWidth = pageWidth - margin * 2;
-
-  // First, measure required height by walking the layout.
-  const lines = buildReceiptLines(sale);
+  const innerWidth = pageWidth - margin * 2; // 72 mm printable
   const lineHeight = 3.6; // mm per line @ ~10pt mono
-  const headerHeight = 22;
-  const footerHeight = 18;
-  const itemsHeight = lines.itemRows * 7;
-  const totalsHeight = 16;
-  const pageHeight = Math.max(
-    80,
-    headerHeight + lines.headerExtra + itemsHeight + totalsHeight + footerHeight,
-  );
 
   const doc = new jsPDF({
     unit: "mm",
@@ -167,12 +161,3 @@ function formatPKR(amount: number) {
   );
 }
 
-function buildReceiptLines(sale: Sale): { itemRows: number; headerExtra: number } {
-  // Each item line takes roughly: name (1-2 lines) + barcode + price/subtotal row
-  const itemRows = sale.items.reduce((acc, it) => {
-    const nameLen = (it.size ? it.productName.length + 8 : it.productName.length) + 2;
-    const wrap = nameLen > 36 ? 2 : 1;
-    return acc + wrap + 2;
-  }, 0);
-  return { itemRows, headerExtra: 0 };
-}

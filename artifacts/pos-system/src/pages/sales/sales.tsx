@@ -44,7 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Eye, SearchX, Trash2 } from "lucide-react";
 
 export default function Sales() {
-  const [period, setPeriod] = useState<ListSalesPeriod>("today");
+  const [period, setPeriod] = useState<ListSalesPeriod>("all");
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const { toast } = useToast();

@@ -52,7 +52,7 @@ export default function Sales() {
   const { data: currentUser } = useGetCurrentUser();
   const isAdmin = currentUser?.role === "admin";
 
-  const { data: sales, isLoading } = useListSales({ period });
+  const { data: sales, isLoading, error } = useListSales({ period });
 
   const clearSales = useClearSales({
     mutation: {
@@ -140,7 +140,19 @@ export default function Sales() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : sales?.length === 0 ? (
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-64 text-center">
+                    <div className="flex flex-col items-center justify-center text-destructive">
+                      <SearchX className="h-12 w-12 mb-4 opacity-40" />
+                      <p className="text-lg font-medium">Failed to load sales</p>
+                      <p className="text-sm">
+                        {(error as { message?: string } | null)?.message || "Please refresh the page or log in again."}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : !sales || sales.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">

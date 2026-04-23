@@ -63,11 +63,12 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     cookie: {
       httpOnly: true,
       secure: isProd,
       sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   })
 );

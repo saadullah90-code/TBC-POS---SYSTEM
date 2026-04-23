@@ -22,6 +22,15 @@ function formatSale(sale: typeof salesTable.$inferSelect, cashierName?: string |
 }
 
 router.get("/sales", async (req, res): Promise<void> => {
+  // Require auth so an expired session immediately surfaces a 401 to the
+  // frontend (which redirects to /login) instead of silently showing stale
+  // data while admin-only actions like DELETE /sales fail with "Not
+  // authenticated" — a confusing combination that previously made it look
+  // like the delete button was broken.
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
   const queryParams = ListSalesQueryParams.safeParse(req.query);
   if (!queryParams.success) {
     res.status(400).json({ error: queryParams.error.message });

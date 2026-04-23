@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "@workspace/db";
 import path from "node:path";
 import fs from "node:fs";
 import router from "./routes";
@@ -45,8 +47,19 @@ app.set("trust proxy", 1);
 
 const isProd = process.env.NODE_ENV === "production";
 
+// Sessions are persisted in Postgres (not server memory) so they survive
+// restarts and redeploys. Without this, every Railway redeploy logs every
+// user out and breaks any in-flight admin action that relies on
+// `req.session.userId` (e.g. DELETE /sales returning 401 with a stale
+// browser cookie that no longer matches anything in the new process).
+const PgSession = connectPgSimple(session);
 app.use(
   session({
+    store: new PgSession({
+      pool,
+      tableName: "user_sessions",
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,

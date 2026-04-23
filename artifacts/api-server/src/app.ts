@@ -58,7 +58,11 @@ app.use(
     store: new PgSession({
       pool,
       tableName: "user_sessions",
-      createTableIfMissing: true,
+      // NOTE: We do NOT use `createTableIfMissing` because connect-pg-simple
+      // reads its bootstrap SQL from a file inside its npm package, which
+      // is not preserved when esbuild bundles the server into a single file
+      // (it logs ENOENT and silently fails to persist sessions). The table
+      // is created manually via SQL — see migrations / setup notes.
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,

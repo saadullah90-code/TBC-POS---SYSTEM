@@ -622,6 +622,22 @@ export default function Inventory() {
     }
   }, [editingProduct, form]);
 
+  // Live-link Initial Stock to the sum of pending sizes while creating a new
+  // product. Cashiers were confused that "Initial Stock" stayed at 0 even
+  // after adding sizes with piece counts; for sized products it should always
+  // reflect the variant total. Only runs in CREATE mode — when editing,
+  // products.stock is unused for sized items so we leave the field alone.
+  useEffect(() => {
+    if (editingProduct) return;
+    const total = pendingSizes.reduce(
+      (sum, p) => sum + Math.max(0, Math.floor(p.stock || 0)),
+      0,
+    );
+    // Always sync (even when empty) so removing all staged sizes resets the
+    // visible Initial Stock back to 0 instead of stranding the last sum.
+    form.setValue("stock", total, { shouldDirty: true, shouldValidate: false });
+  }, [pendingSizes, editingProduct, form]);
+
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
     setPendingSizes([]);
@@ -656,7 +672,23 @@ export default function Inventory() {
       Number(rawValues.originalPrice) === 0
         ? null
         : Number(rawValues.originalPrice);
-    const values = { ...rawValues, originalPrice: normalizedOriginalPrice };
+    // For new sized products, force Initial Stock to be the SUM of the
+    // staged variant pieces. The cashier might have left the field at the
+    // default 0 even after entering sizes; we mirror what the dashboard /
+    // inventory totals will show after creation so nothing reads as 0 stock.
+    const stagedTotal = pendingSizes.reduce(
+      (sum, p) => sum + Math.max(0, Math.floor(p.stock || 0)),
+      0,
+    );
+    const normalizedStock =
+      !editingProduct && pendingSizes.length > 0
+        ? stagedTotal
+        : rawValues.stock;
+    const values = {
+      ...rawValues,
+      stock: normalizedStock,
+      originalPrice: normalizedOriginalPrice,
+    };
     if (editingProduct) {
       updateProduct.mutate(
         { id: editingProduct.id, data: values },

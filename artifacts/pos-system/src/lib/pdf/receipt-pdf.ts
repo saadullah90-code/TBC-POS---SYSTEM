@@ -71,15 +71,15 @@ function drawReceipt(doc: jsPDF, sale: Sale): number {
   // ---- Brand header (centered) ----
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text("De Luxury Boutique", centerX, y + 4, { align: "center" });
+  doc.text("THE BRAND GALLERY", centerX, y + 4, { align: "center" });
   y += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(80);
   doc.text("Retail Excellence", centerX, y + 1, { align: "center" });
-  doc.text("123 Commerce St., Karachi", centerX, y + 4, { align: "center" });
-  doc.text("Tel: (021) 1234-567", centerX, y + 7, { align: "center" });
+  doc.text("Plaza 172, Sector H, Phase 1, Dha, Lahore.", centerX, y + 4, { align: "center" });
+  doc.text("Tel: 03004707675", centerX, y + 7, { align: "center" });
   y += 9;
 
   doc.setTextColor(0);
@@ -154,10 +154,10 @@ function drawReceipt(doc: jsPDF, sale: Sale): number {
   // ---- Footer ----
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text("Thank you for shopping with us!", centerX, y + 1, { align: "center" });
+  doc.text("Thank you for shopping with us !", centerX, y + 1, { align: "center" });
   y += 3;
   doc.setTextColor(80);
-  doc.text("Returns within 30 days with this receipt", centerX, y + 1, { align: "center" });
+  doc.text("Return or Exchange within 7 days with this reciept", centerX, y + 1, { align: "center" });
   y += 4;
   doc.text("* * * * *", centerX, y + 1, { align: "center" });
   y += 8;

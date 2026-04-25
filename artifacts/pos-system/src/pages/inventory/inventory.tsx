@@ -1175,15 +1175,15 @@ function InventoryCheckDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <ClipboardList className="h-6 w-6" />
             Inventory Check
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Saari inventory ek nazar mein — har product ke kon kon se size available
-            hain aur kitne pieces hain.
+            Full inventory at a glance — see which sizes are available for each
+            product and how many pieces are in stock.
           </p>
         </DialogHeader>
 
@@ -1233,7 +1233,7 @@ function InventoryCheckDialog({
           </Select>
         </div>
 
-        <ScrollArea className="flex-1 px-6">
+        <ScrollArea className="flex-1 min-h-0 px-6">
           <Table>
             <TableHeader className="bg-secondary/50 sticky top-0 z-10">
               <TableRow>

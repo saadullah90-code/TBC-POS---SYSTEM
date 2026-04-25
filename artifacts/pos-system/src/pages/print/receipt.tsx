@@ -74,6 +74,14 @@ export default function Receipt() {
         .brand  { font-weight: 800; font-size: 18px; letter-spacing: .5px; }
         .small  { font-size: 10px; }
         .bold   { font-weight: 700; }
+        .barcode-line {
+          font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+          font-size: 12px;
+          font-weight: 700;
+          color: #000;
+          letter-spacing: 1px;
+          margin-top: 1px;
+        }
         .muted  { color: #444; }
         table.items { width: 100%; border-collapse: collapse; }
         table.items td { padding: 2px 0; vertical-align: top; }
@@ -119,7 +127,7 @@ export default function Receipt() {
                   {it.productName}
                   {it.size ? <span style={{ marginLeft: 6, padding: "0 4px", border: "1px solid #000", borderRadius: 2, fontSize: 10 }}>SIZE {it.size}</span> : null}
                 </div>
-                <div className="small muted" style={{ fontFamily: "monospace" }}>{it.barcode}</div>
+                <div className="barcode-line">{it.barcode}</div>
                 <div className="row small" style={{ marginTop: 2 }}>
                   <span>{it.quantity} x {formatPKR(it.price)}</span>
                   <span className="bold">{formatPKR(it.subtotal)}</span>

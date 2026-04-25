@@ -33,8 +33,11 @@ export default function BarcodePrint() {
   const minMm = Math.min(wMm, hMm);
   // Scale typography to label height so 30mm and 50mm rolls both look right.
   const baseScale = minMm / 30;
-  const nameSize = Math.max(7, Math.min(11, 9 * baseScale));
-  const titleSize = Math.max(6, Math.min(9, 7 * baseScale));
+  const nameSize = Math.max(8, Math.min(12, 10 * baseScale));
+  // Title (Short / POS name) used to be very thin and faded out on cheap
+  // thermal labels. Bump to a bolder weight + bigger size so it stays
+  // readable after one or two reprints.
+  const titleSize = Math.max(8, Math.min(11, 9 * baseScale));
   const priceSize = Math.max(8, Math.min(12, 10 * baseScale));
   const barcodeMaxH = Math.max(8, hMm * 0.55);
 
@@ -103,7 +106,7 @@ export default function BarcodePrint() {
           </div>
         )}
         {title && title !== name && (
-          <div style={{ fontSize: titleSize, fontWeight: 500, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.2em", overflow: "hidden", color: "#333" }}>
+          <div style={{ fontSize: titleSize, fontWeight: 700, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.2em", overflow: "hidden", color: "#000", letterSpacing: 0.2 }}>
             {title}
           </div>
         )}

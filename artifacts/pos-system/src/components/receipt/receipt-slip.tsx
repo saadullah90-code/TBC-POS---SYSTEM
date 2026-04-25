@@ -33,6 +33,16 @@ export function ReceiptSlip({ sale }: { sale: Sale }) {
         .receipt-slip table.items { width: 100%; border-collapse: collapse; }
         .receipt-slip table.items td { padding: 2px 0; vertical-align: top; }
         .receipt-slip .total-row { font-size: 14px; font-weight: 800; }
+        /* Barcode number under each item — was tiny + grey, now prominent
+           so the cashier / customer can read the SKU clearly on the slip. */
+        .receipt-slip .barcode-line {
+          font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+          font-size: 12px;
+          font-weight: 700;
+          color: #000;
+          letter-spacing: 1px;
+          margin-top: 1px;
+        }
       `}</style>
 
       <div className="center">
@@ -60,7 +70,7 @@ export function ReceiptSlip({ sale }: { sale: Sale }) {
                   {it.productName}
                   {it.size ? <span style={{ marginLeft: 6, padding: "0 4px", border: "1px solid #000", borderRadius: 2, fontSize: 10 }}>SIZE {it.size}</span> : null}
                 </div>
-                <div className="small muted" style={{ fontFamily: "monospace" }}>{it.barcode}</div>
+                <div className="barcode-line">{it.barcode}</div>
                 <div className="row small" style={{ marginTop: 2 }}>
                   <span>{it.quantity} x {formatPKR(it.price)}</span>
                   <span className="bold">{formatPKR(it.subtotal)}</span>

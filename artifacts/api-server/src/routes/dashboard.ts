@@ -152,11 +152,28 @@ router.get("/dashboard/low-stock", async (req, res): Promise<void> => {
 
   const threshold = queryParams.data.threshold ?? 5;
 
+  // For sized products (clothing / shoes) the real on-hand quantity lives in
+  // product_variants — the parent products.stock column stays at its initial
+  // value (often 0) and would otherwise mask the actual variant total.
+  // Compute an "effective" stock = SUM(variants.stock) when variants exist,
+  // else products.stock; then both the WHERE filter and the returned `stock`
+  // field reflect what the cashier actually sees on the floor.
+  const effectiveStock = sql<number>`COALESCE((SELECT SUM(${productVariantsTable.stock}) FROM ${productVariantsTable} WHERE ${productVariantsTable.productId} = ${productsTable.id}), ${productsTable.stock})`;
+
   const products = await db
-    .select()
+    .select({
+      id: productsTable.id,
+      name: productsTable.name,
+      title: productsTable.title,
+      price: productsTable.price,
+      category: productsTable.category,
+      stock: effectiveStock,
+      barcode: productsTable.barcode,
+      createdAt: productsTable.createdAt,
+    })
     .from(productsTable)
-    .where(sql`${productsTable.stock} <= ${threshold}`)
-    .orderBy(productsTable.stock);
+    .where(sql`${effectiveStock} <= ${threshold}`)
+    .orderBy(effectiveStock);
 
   res.json(
     products.map((p) => ({
@@ -165,7 +182,7 @@ router.get("/dashboard/low-stock", async (req, res): Promise<void> => {
       title: p.title,
       price: p.price,
       category: p.category,
-      stock: p.stock,
+      stock: Number(p.stock ?? 0),
       barcode: p.barcode,
       createdAt: p.createdAt.toISOString(),
     }))

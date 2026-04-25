@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateProduct,
+  useCreateProductVariant,
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import * as z from "zod";
@@ -17,6 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -29,9 +35,18 @@ import {
   Clock,
   ClipboardPaste,
   Eraser,
+  Ruler,
+  X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type RowStatus = "pending" | "saving" | "ok" | "error";
+
+interface SizeEntry {
+  size: string;
+  stock: number;
+}
+
 interface Row {
   id: string;
   name: string;
@@ -39,6 +54,7 @@ interface Row {
   price: string;
   category: string;
   stock: string;
+  sizes: SizeEntry[];
   status: RowStatus;
   error?: string;
 }
@@ -51,6 +67,13 @@ const rowSchema = z.object({
   stock: z.coerce.number().int().min(0, "Stock >= 0"),
 });
 
+// Preset palettes for quick multi-select.
+//   - CLOTHING: T-shirts / shirts / dresses (XS – XXXL).
+//   - NUMBERS:  jeans / trousers / shoes (38 – 48). Anything outside this
+//     range can still be added via the Custom input.
+const CLOTHING_PRESETS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+const NUMERIC_PRESETS = Array.from({ length: 11 }, (_, i) => String(38 + i)); // 38..48
+
 const newId = () => Math.random().toString(36).slice(2, 9);
 const blankRow = (): Row => ({
   id: newId(),
@@ -59,6 +82,7 @@ const blankRow = (): Row => ({
   price: "",
   category: "",
   stock: "",
+  sizes: [],
   status: "pending",
 });
 
@@ -70,11 +94,22 @@ const FIELDS: (keyof Pick<Row, "name" | "title" | "price" | "category" | "stock"
   "stock",
 ];
 
+// Effective stock = SUM of variant pieces when sizes exist, else the typed
+// number in the Stock cell. The cashier always sees this number because
+// it's what flows into the database after import.
+const effectiveStockOf = (r: Row): number => {
+  if (r.sizes.length > 0) {
+    return r.sizes.reduce((s, x) => s + Math.max(0, Math.floor(x.stock || 0)), 0);
+  }
+  return Number(r.stock || 0);
+};
+
 export default function BulkAdd() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const createProduct = useCreateProduct();
+  const createVariant = useCreateProductVariant();
 
   const [rows, setRows] = useState<Row[]>(() =>
     Array.from({ length: 5 }, () => blankRow()),
@@ -93,6 +128,16 @@ export default function BulkAdd() {
     );
   };
 
+  const updateSizes = (id: string, sizes: SizeEntry[]) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, sizes, status: r.status === "ok" ? "ok" : "pending", error: undefined }
+          : r,
+      ),
+    );
+  };
+
   const addRow = (count = 1) => {
     setRows((prev) => [...prev, ...Array.from({ length: count }, () => blankRow())]);
     setTimeout(() => tableRef.current?.scrollTo({ top: tableRef.current.scrollHeight, behavior: "smooth" }), 50);
@@ -105,7 +150,7 @@ export default function BulkAdd() {
   const clearImported = () => setRows((prev) => prev.filter((r) => r.status !== "ok"));
 
   const isRowEmpty = (r: Row) =>
-    !r.name && !r.title && !r.price && !r.category && !r.stock;
+    !r.name && !r.title && !r.price && !r.category && !r.stock && r.sizes.length === 0;
 
   /**
    * Smart paste: if the user pastes TSV/CSV from Excel/Sheets into any cell,
@@ -183,14 +228,19 @@ export default function BulkAdd() {
     setRunning(true);
     let ok = 0;
     let fail = 0;
+    let variantWarnings = 0;
 
     for (const row of candidates) {
+      // Force the persisted Stock column to the variant SUM so dashboard /
+      // inventory always show the real count from the very first save.
+      const persistedStock = effectiveStockOf(row);
+
       const parsed = rowSchema.safeParse({
         name: row.name,
         title: row.title,
         price: row.price,
         category: row.category,
-        stock: row.stock,
+        stock: persistedStock,
       });
 
       if (!parsed.success) {
@@ -205,7 +255,29 @@ export default function BulkAdd() {
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: "saving" } : r)));
 
       try {
-        await createProduct.mutateAsync({ data: parsed.data });
+        const created = await createProduct.mutateAsync({ data: parsed.data });
+
+        // Now persist any sizes attached to this row.
+        if (row.sizes.length > 0 && created?.id) {
+          for (const s of row.sizes) {
+            try {
+              await createVariant.mutateAsync({
+                id: created.id,
+                data: {
+                  size: s.size.toUpperCase(),
+                  stock: Math.max(0, Math.floor(s.stock || 0)),
+                },
+              });
+            } catch (ve: any) {
+              variantWarnings++;
+              console.error(
+                `Variant ${s.size} failed for product ${created.id}:`,
+                ve?.error || ve?.message,
+              );
+            }
+          }
+        }
+
         ok++;
         setRows((prev) =>
           prev.map((r) => (r.id === row.id ? { ...r, status: "ok", error: undefined } : r)),
@@ -224,9 +296,15 @@ export default function BulkAdd() {
 
     queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
     setRunning(false);
+    const description =
+      fail > 0
+        ? `${fail} row(s) failed — see the table`
+        : variantWarnings > 0
+          ? `${variantWarnings} size(s) failed to attach — check console`
+          : "All rows added.";
     toast({
       title: `Imported ${ok} of ${candidates.length}`,
-      description: fail > 0 ? `${fail} row(s) failed — see the table` : "All rows added.",
+      description,
       variant: fail > 0 ? "destructive" : "default",
     });
   };
@@ -304,6 +382,7 @@ export default function BulkAdd() {
                 <TableHead className="w-[130px]">Price (PKR) *</TableHead>
                 <TableHead className="min-w-[150px]">Category *</TableHead>
                 <TableHead className="w-[110px]">Stock *</TableHead>
+                <TableHead className="w-[170px]">Sizes</TableHead>
                 <TableHead className="w-[120px]">Status</TableHead>
                 <TableHead className="w-[60px]"></TableHead>
               </TableRow>
@@ -311,6 +390,8 @@ export default function BulkAdd() {
             <TableBody>
               {rows.map((row, rowIndex) => {
                 const disabled = row.status === "ok" || running;
+                const hasSizes = row.sizes.length > 0;
+                const computedStock = effectiveStockOf(row);
                 return (
                   <TableRow
                     key={row.id}
@@ -325,31 +406,54 @@ export default function BulkAdd() {
                     <TableCell className="text-center text-xs text-muted-foreground font-mono">
                       {rowIndex + 1}
                     </TableCell>
-                    {FIELDS.map((field, fieldIndex) => (
-                      <TableCell key={field} className="p-1">
-                        <Input
-                          value={(row as any)[field]}
-                          onChange={(e) => updateCell(row.id, field, e.target.value)}
-                          onPaste={(e) => onCellPaste(e, rowIndex, fieldIndex)}
-                          disabled={disabled}
-                          type={field === "price" || field === "stock" ? "number" : "text"}
-                          step={field === "price" ? "0.01" : undefined}
-                          min={field === "price" || field === "stock" ? 0 : undefined}
-                          placeholder={
-                            field === "name"
-                              ? "Organic Apple"
-                              : field === "title"
-                                ? "Apple"
-                                : field === "price"
-                                  ? "250"
-                                  : field === "category"
-                                    ? "Fruits"
-                                    : "50"
-                          }
-                          className="h-9 bg-background"
-                        />
-                      </TableCell>
-                    ))}
+                    {FIELDS.map((field, fieldIndex) => {
+                      // When the row has sizes attached, the Stock cell becomes
+                      // a read-only computed sum (variant pieces drive it).
+                      if (field === "stock" && hasSizes) {
+                        return (
+                          <TableCell key={field} className="p-1">
+                            <div
+                              className="h-9 flex items-center justify-center rounded-md bg-secondary/30 border border-border text-sm font-semibold text-foreground"
+                              title={`${row.sizes.length} size${row.sizes.length === 1 ? "" : "s"} → ${computedStock} pieces`}
+                            >
+                              {computedStock}
+                            </div>
+                          </TableCell>
+                        );
+                      }
+                      return (
+                        <TableCell key={field} className="p-1">
+                          <Input
+                            value={(row as any)[field]}
+                            onChange={(e) => updateCell(row.id, field, e.target.value)}
+                            onPaste={(e) => onCellPaste(e, rowIndex, fieldIndex)}
+                            disabled={disabled}
+                            type={field === "price" || field === "stock" ? "number" : "text"}
+                            step={field === "price" ? "0.01" : undefined}
+                            min={field === "price" || field === "stock" ? 0 : undefined}
+                            placeholder={
+                              field === "name"
+                                ? "Organic Apple"
+                                : field === "title"
+                                  ? "Apple"
+                                  : field === "price"
+                                    ? "250"
+                                    : field === "category"
+                                      ? "Fruits"
+                                      : "50"
+                            }
+                            className="h-9 bg-background"
+                          />
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="p-1">
+                      <SizesPopover
+                        sizes={row.sizes}
+                        disabled={disabled}
+                        onChange={(s) => updateSizes(row.id, s)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <StatusPill status={row.status} error={row.error} />
                     </TableCell>
@@ -369,7 +473,7 @@ export default function BulkAdd() {
                 );
               })}
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-3">
+                <TableCell colSpan={9} className="text-center py-3">
                   <Button variant="ghost" size="sm" onClick={() => addRow(1)} disabled={running}>
                     <Plus className="mr-2 h-4 w-4" /> Add row
                   </Button>
@@ -382,7 +486,8 @@ export default function BulkAdd() {
 
       <p className="text-xs text-muted-foreground">
         Tip: copy a block of cells from Excel or Google Sheets and paste into any cell — the data
-        will fan out across columns and rows automatically.
+        will fan out across columns and rows automatically. For sized items (clothing / shoes),
+        click the Sizes button to pick presets like XS–XXXL or 38–48 in one go.
       </p>
     </div>
   );
@@ -418,5 +523,199 @@ function StatusPill({ status, error }: { status: RowStatus; error?: string }) {
     <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
       <Clock className="h-3.5 w-3.5" /> Pending
     </span>
+  );
+}
+
+/**
+ * Per-row size manager.
+ *  - Two preset palettes (clothing letters, jeans/shoe numbers) — click chips
+ *    to multi-select; each newly picked size starts at 1 piece.
+ *  - Custom input for anything outside the presets (e.g. "30W", "EUR 42").
+ *  - List of selected sizes with a piece input each.
+ */
+function SizesPopover({
+  sizes,
+  disabled,
+  onChange,
+}: {
+  sizes: SizeEntry[];
+  disabled: boolean;
+  onChange: (next: SizeEntry[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState("");
+
+  const used = new Set(sizes.map((s) => s.size.toUpperCase()));
+  const totalPieces = sizes.reduce(
+    (s, x) => s + Math.max(0, Math.floor(x.stock || 0)),
+    0,
+  );
+
+  const togglePreset = (size: string) => {
+    const upper = size.toUpperCase();
+    if (used.has(upper)) {
+      onChange(sizes.filter((s) => s.size.toUpperCase() !== upper));
+    } else {
+      onChange([...sizes, { size: upper, stock: 1 }]);
+    }
+  };
+
+  const setStock = (size: string, stock: number) => {
+    onChange(
+      sizes.map((s) =>
+        s.size.toUpperCase() === size.toUpperCase()
+          ? { ...s, stock: Math.max(0, Math.floor(stock || 0)) }
+          : s,
+      ),
+    );
+  };
+
+  const removeSize = (size: string) => {
+    onChange(sizes.filter((s) => s.size.toUpperCase() !== size.toUpperCase()));
+  };
+
+  const addCustom = () => {
+    const upper = custom.trim().toUpperCase();
+    if (!upper) return;
+    if (used.has(upper)) {
+      setCustom("");
+      return;
+    }
+    onChange([...sizes, { size: upper, stock: 1 }]);
+    setCustom("");
+  };
+
+  const renderChip = (label: string) => {
+    const active = used.has(label.toUpperCase());
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={() => togglePreset(label)}
+        className={cn(
+          "px-2.5 h-7 rounded-md text-xs font-mono font-semibold border transition-colors",
+          active
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-secondary text-secondary-foreground border-transparent hover:bg-secondary/70",
+        )}
+      >
+        {label}
+      </button>
+    );
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          className="h-9 w-full justify-start font-medium"
+        >
+          <Ruler className="mr-2 h-3.5 w-3.5 text-primary" />
+          {sizes.length === 0 ? (
+            <span className="text-muted-foreground">Add sizes</span>
+          ) : (
+            <span>
+              {sizes.length} size{sizes.length === 1 ? "" : "s"}{" "}
+              <span className="text-muted-foreground">({totalPieces} pcs)</span>
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[420px] p-4" align="start">
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+              Clothing (T-shirts, shirts, dresses)
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {CLOTHING_PRESETS.map((s) => renderChip(s))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+              Numbers (jeans, trousers, shoes)
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {NUMERIC_PRESETS.map((s) => renderChip(s))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+              Custom size
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                placeholder="e.g. 30W, EUR 42, FREE"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustom();
+                  }
+                }}
+                className="h-8"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={addCustom}
+                disabled={!custom.trim()}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+
+          {sizes.length > 0 && (
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Pieces per size
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  Total: <span className="font-bold text-foreground">{totalPieces}</span>
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {sizes.map((s) => (
+                  <div key={s.size} className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold w-14 shrink-0 text-foreground">
+                      {s.size}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={s.stock}
+                      onChange={(e) =>
+                        setStock(s.size, parseInt(e.target.value || "0", 10))
+                      }
+                      className="h-8"
+                      placeholder="0"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => removeSize(s.size)}
+                      title={`Remove ${s.size}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

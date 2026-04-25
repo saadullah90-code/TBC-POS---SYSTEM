@@ -109,11 +109,13 @@ function drawReceipt(doc: jsPDF, sale: Sale): number {
     doc.text(nameLines, leftMargin, y + 2.5);
     y += nameLines.length * 3.2 + 0.5;
 
-    doc.setFont("courier", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(80);
-    doc.text(it.barcode, leftMargin, y + 2);
-    y += 3;
+    // Barcode under each item — was tiny grey (size 7, color 80) and faded
+    // out on thermal print. Bumped to bold black 9pt so it stays legible.
+    doc.setFont("courier", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+    doc.text(it.barcode, leftMargin, y + 2.5);
+    y += 3.5;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);

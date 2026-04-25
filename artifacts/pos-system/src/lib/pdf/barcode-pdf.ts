@@ -141,7 +141,9 @@ function drawLabel(
   // Scale typography to the label height so 30mm and 60mm rolls both look right.
   const baseScale = Math.min(pageW, pageH) / 30; // 1.0 at 30mm
   const nameSize = clamp(7 * baseScale, 6, 11);
-  const titleSize = clamp(5.5 * baseScale, 4.5, 8);
+  // Bumped (was 5.5 / 4.5–8) — the short title was too thin on cheap thermal
+  // labels and faded after a couple of reprints. Bigger + bold (see below).
+  const titleSize = clamp(7 * baseScale, 6, 10);
   const priceSize = clamp(8 * baseScale, 6.5, 12);
   const lineH = (size: number) => size * 0.36;
 
@@ -157,16 +159,17 @@ function drawLabel(
     y += lineH(nameSize);
   }
 
-  // ----- Title (single line, lighter) -----
+  // ----- Title (single line, BOLD) -----
+  // Was "normal" + grey 80; that came out faint on thermal printers, so
+  // bumped to bold + pure black for crisp ink coverage.
   if (label.title && label.title !== label.name) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(titleSize);
-    doc.setTextColor(80);
+    doc.setTextColor(0);
     const titleLine =
       (doc.splitTextToSize(label.title, innerW) as string[])[0] ?? "";
     doc.text(titleLine, cx, y + titleSize * 0.32, { align: "center" });
     y += lineH(titleSize);
-    doc.setTextColor(0);
   }
 
   // ----- Optional pre-discount price (struck through) on its own line -----

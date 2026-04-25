@@ -608,8 +608,24 @@ export default function Inventory() {
     },
   });
 
+  // Compute the "real" on-hand stock for a product: SUM of variant pieces if
+  // it's a sized product, otherwise products.stock (used for plain non-sized
+  // items like food/drinks). This is what the cashier sees on the inventory
+  // grid and dashboard, so the dialog's Initial Stock field must show the
+  // SAME number — not the legacy products.stock=0 column for sized items.
+  const variantSum = (p: Product | null | undefined): number => {
+    if (!p) return 0;
+    if (p.variants && p.variants.length > 0) {
+      return p.variants.reduce((s, v) => s + (v.stock ?? 0), 0);
+    }
+    return p.stock ?? 0;
+  };
+
   useEffect(() => {
     if (editingProduct) {
+      // On dialog open, seed the form with whatever is currently stored.
+      // Use the variant total (mirrors what the user sees elsewhere) instead
+      // of the raw products.stock column, which is 0 for all sized products.
       form.reset({
         name: editingProduct.name,
         title: editingProduct.title,
@@ -617,7 +633,7 @@ export default function Inventory() {
         originalPrice:
           editingProduct.originalPrice != null ? editingProduct.originalPrice : "",
         category: editingProduct.category,
-        stock: editingProduct.stock,
+        stock: variantSum(editingProduct),
       });
     }
   }, [editingProduct, form]);
@@ -625,8 +641,7 @@ export default function Inventory() {
   // Live-link Initial Stock to the sum of pending sizes while creating a new
   // product. Cashiers were confused that "Initial Stock" stayed at 0 even
   // after adding sizes with piece counts; for sized products it should always
-  // reflect the variant total. Only runs in CREATE mode — when editing,
-  // products.stock is unused for sized items so we leave the field alone.
+  // reflect the variant total.
   useEffect(() => {
     if (editingProduct) return;
     const total = pendingSizes.reduce(
@@ -637,6 +652,20 @@ export default function Inventory() {
     // visible Initial Stock back to 0 instead of stranding the last sum.
     form.setValue("stock", total, { shouldDirty: true, shouldValidate: false });
   }, [pendingSizes, editingProduct, form]);
+
+  // EDIT mode live sync: as the user adds / edits / deletes sizes inside the
+  // dialog (which mutates variants via the API and refetches products),
+  // `liveEditingProduct` picks up the fresh variants. Push the new total
+  // into the form so the Initial Stock badge tracks reality without forcing
+  // the user to close-and-reopen.
+  const liveEditVariantTotal = editingProduct ? variantSum(liveEditingProduct) : 0;
+  useEffect(() => {
+    if (!editingProduct) return;
+    form.setValue("stock", liveEditVariantTotal, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+  }, [editingProduct, liveEditVariantTotal, form]);
 
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
@@ -672,18 +701,26 @@ export default function Inventory() {
       Number(rawValues.originalPrice) === 0
         ? null
         : Number(rawValues.originalPrice);
-    // For new sized products, force Initial Stock to be the SUM of the
-    // staged variant pieces. The cashier might have left the field at the
-    // default 0 even after entering sizes; we mirror what the dashboard /
-    // inventory totals will show after creation so nothing reads as 0 stock.
+    // Keep the persisted products.stock column in sync with the variant
+    // total so re-opening the dialog (and any read that doesn't fall back
+    // to the variant SUM) shows the right number, never 0.
+    //   - CREATE w/ staged sizes: use the sum of pendingSizes.
+    //   - EDIT of a sized product: use the LIVE variant sum (sizes may
+    //     have been added via SizesSection mid-edit).
+    //   - Plain non-sized item: trust whatever the user typed.
     const stagedTotal = pendingSizes.reduce(
       (sum, p) => sum + Math.max(0, Math.floor(p.stock || 0)),
       0,
     );
-    const normalizedStock =
-      !editingProduct && pendingSizes.length > 0
-        ? stagedTotal
-        : rawValues.stock;
+    const liveEditTotal = variantSum(liveEditingProduct);
+    const editingHasVariants =
+      !!liveEditingProduct?.variants && liveEditingProduct.variants.length > 0;
+    let normalizedStock = rawValues.stock;
+    if (!editingProduct && pendingSizes.length > 0) {
+      normalizedStock = stagedTotal;
+    } else if (editingProduct && editingHasVariants) {
+      normalizedStock = liveEditTotal;
+    }
     const values = {
       ...rawValues,
       stock: normalizedStock,

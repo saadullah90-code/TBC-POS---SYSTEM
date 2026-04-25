@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -32,6 +33,10 @@ import {
   Printer,
   Loader2,
   Trash2,
+  IndianRupee,
+  Eraser,
+  Pencil,
+  TagIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { silentPrintBarcodeLabels } from "@/lib/silent-barcode";
@@ -43,14 +48,10 @@ function formatCurrency(n: number) {
   })}`;
 }
 
-// One row in the working list. We keep the productId + a draft sale price
-// the user is editing. The original price is auto-set to the product's current
-// `price` (the price BEFORE discount) when the row is added, but only if the
-// product is not already discounted — in that case we keep the existing
-// originalPrice so we don't lose the original ticket value.
+type Mode = "discount" | "edit" | "remove";
+
 interface DraftRow {
   productId: number;
-  // What the user wants the new sale price to become
   newPrice: number | "";
 }
 
@@ -59,7 +60,9 @@ export default function Discounts() {
   const updateProduct = useUpdateProduct();
   const { toast } = useToast();
 
+  const [mode, setMode] = useState<Mode>("discount");
   const [search, setSearch] = useState("");
+  const [priceSearch, setPriceSearch] = useState("");
   const [scan, setScan] = useState("");
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -68,14 +71,21 @@ export default function Discounts() {
   const [saving, setSaving] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
-  // Map of productId -> Product, for quick lookup when rendering rows
+  // Map of productId -> Product for quick lookup
   const byId = useMemo(() => {
     const m = new Map<number, Product>();
     for (const p of products ?? []) m.set(p.id, p);
     return m;
   }, [products]);
 
-  // Search results — only when there's a query
+  // When the mode changes, clear any draft new prices so an old discount
+  // value doesn't get re-applied as an "edit" or vice versa.
+  useEffect(() => {
+    setRows((prev) => prev.map((r) => ({ ...r, newPrice: "" })));
+    setBulkPrice("");
+  }, [mode]);
+
+  // Text search results — by name/title/barcode
   const searchResults = useMemo(() => {
     if (!search.trim()) return [] as Product[];
     const q = search.trim().toLowerCase();
@@ -94,6 +104,18 @@ export default function Discounts() {
       .slice(0, 8);
   }, [products, search, rows]);
 
+  // Price search results — match by current price OR original price
+  const priceSearchResults = useMemo(() => {
+    const q = priceSearch.trim();
+    if (!q) return [] as Product[];
+    const target = Number(q);
+    if (!Number.isFinite(target)) return [] as Product[];
+    return (products ?? []).filter((p) => {
+      if (rows.some((r) => r.productId === p.id)) return false;
+      return p.price === target || p.originalPrice === target;
+    });
+  }, [products, priceSearch, rows]);
+
   // Try to focus the scan input on mount so a barcode scanner just works
   useEffect(() => {
     scanInputRef.current?.focus();
@@ -107,11 +129,32 @@ export default function Discounts() {
     setRows((prev) => [...prev, { productId: p.id, newPrice: "" }]);
   };
 
+  const addAllPriceMatches = () => {
+    if (priceSearchResults.length === 0) return;
+    const toAdd = priceSearchResults.filter(
+      (p) => !rows.some((r) => r.productId === p.id),
+    );
+    if (toAdd.length === 0) {
+      toast({ title: "All matches already in list" });
+      return;
+    }
+    setRows((prev) => [
+      ...prev,
+      ...toAdd.map((p) => ({ productId: p.id, newPrice: "" as number | "" })),
+    ]);
+    toast({
+      title: "Added",
+      description: `${toAdd.length} product(s) matching ${formatCurrency(
+        Number(priceSearch),
+      )}`,
+    });
+    setPriceSearch("");
+  };
+
   const handleScanSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const code = scan.trim();
     if (!code) return;
-    // Match by product barcode OR variant barcode
     const product = (products ?? []).find(
       (p) =>
         p.barcode === code ||
@@ -140,6 +183,11 @@ export default function Discounts() {
     });
   };
 
+  const clearList = () => {
+    setRows([]);
+    setSelected(new Set());
+  };
+
   const updateRowPrice = (productId: number, newPrice: number | "") => {
     setRows((prev) =>
       prev.map((r) =>
@@ -164,12 +212,14 @@ export default function Discounts() {
     else setSelected(new Set());
   };
 
+  // Apply the bulk price input to all selected rows. Used in 'discount' and
+  // 'edit' modes — 'remove' has its own one-click button (no price needed).
   const applyBulkPrice = () => {
     const v = Number(bulkPrice);
     if (!bulkPrice || !Number.isFinite(v) || v < 0) {
       toast({
         variant: "destructive",
-        title: "Enter a valid discount price",
+        title: "Enter a valid price",
       });
       return;
     }
@@ -187,69 +237,122 @@ export default function Discounts() {
     );
     toast({
       title: "Applied",
-      description: `Discount price ${formatCurrency(v)} applied to ${selected.size} product(s)`,
+      description: `${formatCurrency(v)} applied to ${selected.size} product(s)`,
     });
   };
 
-  // Determine which rows are "ready" — i.e. have a valid new price strictly
-  // less than the existing sale price, so applying actually creates a (deeper)
-  // discount. This matches the per-row hint "Must be lower than current price".
+  // Determine which rows are "ready" — ready means the row will produce a
+  // valid update on save, given the active mode.
   const readyRows = useMemo(() => {
     return rows
       .map((r) => {
         const p = byId.get(r.productId);
         if (!p) return null;
-        const newPrice = typeof r.newPrice === "number" ? r.newPrice : NaN;
-        if (!Number.isFinite(newPrice) || newPrice <= 0) return null;
-        if (newPrice >= p.price) return null;
-        return { product: p, newPrice };
+
+        if (mode === "discount") {
+          // Discount: new price must be > 0 and strictly less than current
+          const np = typeof r.newPrice === "number" ? r.newPrice : NaN;
+          if (!Number.isFinite(np) || np <= 0) return null;
+          if (np >= p.price) return null;
+          return { product: p, newPrice: np };
+        }
+
+        if (mode === "edit") {
+          // Edit price: new price must be > 0 and different from current
+          const np = typeof r.newPrice === "number" ? r.newPrice : NaN;
+          if (!Number.isFinite(np) || np <= 0) return null;
+          if (np === p.price) return null;
+          return { product: p, newPrice: np };
+        }
+
+        // mode === "remove": ready only if the product currently has a discount
+        if (p.originalPrice != null && p.originalPrice > p.price) {
+          return { product: p, newPrice: p.originalPrice };
+        }
+        return null;
       })
       .filter((x): x is { product: Product; newPrice: number } => x != null);
-  }, [rows, byId]);
+  }, [rows, byId, mode]);
 
   const saveAll = async () => {
     if (readyRows.length === 0) {
+      const msg =
+        mode === "discount"
+          ? "Set a discount price (less than current price) on at least one product."
+          : mode === "edit"
+            ? "Enter a new price (different from current) on at least one product."
+            : "No discounted products in the list. Add some that have a discount applied.";
       toast({
         variant: "destructive",
         title: "Nothing to save",
-        description: "Set a discount price (less than current price) on at least one product.",
+        description: msg,
       });
       return;
     }
+
     setSaving(true);
     let ok = 0;
     let fail = 0;
+
     for (const { product, newPrice } of readyRows) {
-      // The pre-discount price to keep on the label as the struck-through value:
-      // - if the product was never on discount, that's its current `price`
-      // - if it was already discounted, keep the existing `originalPrice`
-      const orig =
-        product.originalPrice != null && product.originalPrice > product.price
-          ? product.originalPrice
-          : product.price;
       try {
-        await updateProduct.mutateAsync({
-          id: product.id,
-          data: {
-            name: product.name,
-            title: product.title,
-            category: product.category,
-            stock: product.stock,
-            price: newPrice,
-            originalPrice: orig,
-          },
-        });
+        const data: {
+          name: string;
+          title: string;
+          category: string;
+          stock: number;
+          price: number;
+          originalPrice: number | null;
+        } = {
+          name: product.name,
+          title: product.title,
+          category: product.category,
+          stock: product.stock,
+          price: product.price,
+          originalPrice: product.originalPrice ?? null,
+        };
+
+        if (mode === "discount") {
+          // Keep the pre-discount price as originalPrice. If the product was
+          // already discounted, preserve the existing originalPrice so we don't
+          // lose the original ticket value.
+          const orig =
+            product.originalPrice != null && product.originalPrice > product.price
+              ? product.originalPrice
+              : product.price;
+          data.price = newPrice;
+          data.originalPrice = orig;
+        } else if (mode === "edit") {
+          // Just change the actual price. Clear any discount marker so the
+          // displayed price is the real one (no strikethrough left over).
+          data.price = newPrice;
+          data.originalPrice = null;
+        } else {
+          // Remove discount: restore price back to originalPrice and clear it.
+          data.price = newPrice; // newPrice == originalPrice for ready rows
+          data.originalPrice = null;
+        }
+
+        await updateProduct.mutateAsync({ id: product.id, data });
         ok++;
       } catch {
         fail++;
       }
     }
+
     setSaving(false);
+
     if (fail === 0) {
-      toast({
-        title: "Discounts saved",
-        description: `${ok} product(s) updated`,
-      });
+      const verb =
+        mode === "discount"
+          ? "Discounts saved"
+          : mode === "edit"
+            ? "Prices updated"
+            : "Discounts removed";
+      toast({ title: verb, description: `${ok} product(s) updated` });
+      // Clear pending values so the next round starts fresh
+      setRows((prev) => prev.map((r) => ({ ...r, newPrice: "" })));
+      setSelected(new Set());
     } else {
       toast({
         variant: "destructive",
@@ -259,13 +362,9 @@ export default function Discounts() {
     }
   };
 
-  // Print labels for either the "ready" rows (preview of pending discount), or
-  // — when nothing is pending — for the products as they are currently saved
-  // (so user can re-print labels for already discounted products).
+  // Print labels for the rows that have a pending discount (in 'discount'
+  // mode) OR for the rows that are already discounted (any mode).
   const handlePrintLabels = () => {
-    // Decide which products to print labels for: prefer rows that have a
-    // pending new price; fall back to all listed rows for already-discounted
-    // products.
     const targets: Array<{
       product: Product;
       effectivePrice: number;
@@ -276,32 +375,37 @@ export default function Discounts() {
       const p = byId.get(r.productId);
       if (!p) continue;
       const newPrice = typeof r.newPrice === "number" ? r.newPrice : NaN;
-      if (Number.isFinite(newPrice) && newPrice > 0 && newPrice < p.price) {
-        // Pending discount — use the pending values
+      if (
+        mode === "discount" &&
+        Number.isFinite(newPrice) &&
+        newPrice > 0 &&
+        newPrice < p.price
+      ) {
         const orig =
           p.originalPrice != null && p.originalPrice > p.price
             ? p.originalPrice
             : p.price;
         targets.push({ product: p, effectivePrice: newPrice, originalPrice: orig });
-      } else if (
-        p.originalPrice != null &&
-        p.originalPrice > p.price
-      ) {
-        // Already-discounted — print as-is
+      } else if (p.originalPrice != null && p.originalPrice > p.price) {
         targets.push({
           product: p,
           effectivePrice: p.price,
           originalPrice: p.originalPrice,
         });
+      } else if (mode === "edit") {
+        // For plain price edits, print a normal label (no strikethrough)
+        const eff =
+          Number.isFinite(newPrice) && newPrice > 0 ? newPrice : p.price;
+        targets.push({ product: p, effectivePrice: eff, originalPrice: null });
       }
     }
 
     if (targets.length === 0) {
       toast({
         variant: "destructive",
-        title: "No discounted labels to print",
+        title: "Nothing to print",
         description:
-          "Set a new (lower) price on a product, or add already discounted products.",
+          "Add products and set a price (or include already discounted ones).",
       });
       return;
     }
@@ -331,33 +435,91 @@ export default function Discounts() {
       },
     );
 
-    // Fallback URL just lists the product ids so the bulk page can render
-    // their CURRENT (saved) values. Note: if the user hasn't pressed Save Discounts
-    // yet, the fallback page will show the OLD price — only the silent path
-    // honors the pending pricing. We surface this in the button tooltip.
     const ids = targets.map((t) => t.product.id).join(",");
     const fallbackUrl = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copies}`;
     void silentPrintBarcodeLabels(labels, fallbackUrl, copies);
   };
 
+  // ---- UI helpers --------------------------------------------------------
+
+  const modeMeta: Record<
+    Mode,
+    {
+      title: string;
+      desc: string;
+      saveLabel: string;
+      bulkLabel: string;
+      bulkPlaceholder: string;
+      Icon: typeof Tag;
+    }
+  > = {
+    discount: {
+      title: "Add Discount",
+      desc: "Set a sale price (lower than current) on one or many products.",
+      saveLabel: "Save Discounts",
+      bulkLabel: "Bulk discount price (PKR)",
+      bulkPlaceholder: "e.g. 6000",
+      Icon: TagIcon,
+    },
+    edit: {
+      title: "Edit Price",
+      desc: "Change the actual ticket price up or down. No discount marker is kept.",
+      saveLabel: "Save New Prices",
+      bulkLabel: "Bulk new price (PKR)",
+      bulkPlaceholder: "e.g. 9500",
+      Icon: Pencil,
+    },
+    remove: {
+      title: "Remove Discount",
+      desc: "Restore the original ticket price on already discounted products.",
+      saveLabel: "Remove Discounts",
+      bulkLabel: "(no price needed)",
+      bulkPlaceholder: "—",
+      Icon: Eraser,
+    },
+  };
+
+  const meta = modeMeta[mode];
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <Tag className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight">Discounts</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Scan or search products, set a discount price (in bulk if needed),
-            then save and print updated barcode labels with the original price
-            struck through.
+            Add or remove discounts and edit prices in bulk. Search by name,
+            barcode or by exact price.
           </p>
         </div>
       </div>
 
-      {/* Scan + Search */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* Mode selector */}
+      <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
+        <TabsList className="grid grid-cols-3 w-full max-w-2xl">
+          <TabsTrigger value="discount" className="gap-2">
+            <TagIcon className="h-4 w-4" /> Add Discount
+          </TabsTrigger>
+          <TabsTrigger value="edit" className="gap-2">
+            <Pencil className="h-4 w-4" /> Edit Price
+          </TabsTrigger>
+          <TabsTrigger value="remove" className="gap-2">
+            <Eraser className="h-4 w-4" /> Remove Discount
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Mode summary */}
+      <div className="text-sm text-muted-foreground flex items-center gap-2">
+        <meta.Icon className="h-4 w-4 text-primary" />
+        <span className="font-medium text-foreground">{meta.title}:</span>
+        <span>{meta.desc}</span>
+      </div>
+
+      {/* Search inputs: scan + name + price */}
+      <div className="grid md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -386,7 +548,7 @@ export default function Discounts() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Search className="h-4 w-4 text-primary" /> Search Products
+              <Search className="h-4 w-4 text-primary" /> Search by Name
             </CardTitle>
             <CardDescription>
               Search by name, title or barcode and pick from results.
@@ -402,7 +564,9 @@ export default function Discounts() {
             {search.trim() && (
               <div className="border border-border rounded-lg max-h-56 overflow-y-auto divide-y divide-border">
                 {isLoading && (
-                  <div className="p-3 text-sm text-muted-foreground">Loading...</div>
+                  <div className="p-3 text-sm text-muted-foreground">
+                    Loading...
+                  </div>
                 )}
                 {!isLoading && searchResults.length === 0 && (
                   <div className="p-3 text-sm text-muted-foreground">
@@ -447,41 +611,131 @@ export default function Discounts() {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-primary" /> Search by Price
+            </CardTitle>
+            <CardDescription>
+              Type an exact price (e.g. 8500) to list every product at that price.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                value={priceSearch}
+                onChange={(e) => setPriceSearch(e.target.value)}
+                placeholder="e.g. 8500"
+                autoComplete="off"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addAllPriceMatches}
+                disabled={priceSearchResults.length === 0}
+              >
+                Add all ({priceSearchResults.length})
+              </Button>
+            </div>
+            {priceSearch.trim() && (
+              <div className="border border-border rounded-lg max-h-56 overflow-y-auto divide-y divide-border">
+                {isLoading && (
+                  <div className="p-3 text-sm text-muted-foreground">
+                    Loading...
+                  </div>
+                )}
+                {!isLoading && priceSearchResults.length === 0 && (
+                  <div className="p-3 text-sm text-muted-foreground">
+                    No products at that price.
+                  </div>
+                )}
+                {priceSearchResults.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => addProduct(p)}
+                    className="w-full text-left p-3 hover:bg-muted/50 flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{p.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {p.title} · {p.barcode}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {p.originalPrice != null && p.originalPrice > p.price ? (
+                        <div className="leading-tight">
+                          <div className="text-[11px] text-muted-foreground line-through">
+                            {formatCurrency(p.originalPrice)}
+                          </div>
+                          <div className="text-emerald-500 font-semibold text-sm">
+                            {formatCurrency(p.price)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="font-medium text-sm">
+                          {formatCurrency(p.price)}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Bulk apply */}
+      {/* Bulk action bar */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Bulk Apply Discount Price</CardTitle>
+          <CardTitle className="text-base">
+            {mode === "remove" ? "Remove Discounts" : "Bulk Apply Price"}
+          </CardTitle>
           <CardDescription>
-            Select rows below, type a new sale price, and apply it to all selected products.
+            {mode === "remove"
+              ? 'Add already-discounted products to the list below, then press "Remove Discounts" to restore their original prices.'
+              : "Select rows below, type a price, and apply it to all selected products."}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[180px]">
-              <label className="text-xs text-muted-foreground">
-                New sale price (PKR)
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="e.g. 6000"
-                value={bulkPrice}
-                onChange={(e) => setBulkPrice(e.target.value)}
-              />
-            </div>
-            <Button onClick={applyBulkPrice} variant="secondary">
-              Apply to selected ({selected.size})
-            </Button>
+            {mode !== "remove" && (
+              <>
+                <div className="flex-1 min-w-[180px]">
+                  <label className="text-xs text-muted-foreground">
+                    {meta.bulkLabel}
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={meta.bulkPlaceholder}
+                    value={bulkPrice}
+                    onChange={(e) => setBulkPrice(e.target.value)}
+                  />
+                </div>
+                <Button onClick={applyBulkPrice} variant="secondary">
+                  Apply to selected ({selected.size})
+                </Button>
+              </>
+            )}
+
             <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-foreground">Copies/label</label>
+              <label className="text-xs text-muted-foreground">
+                Copies/label
+              </label>
               <Input
                 type="number"
                 min={1}
                 className="w-20"
                 value={copies}
-                onChange={(e) => setCopies(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) =>
+                  setCopies(Math.max(1, Number(e.target.value) || 1))
+                }
               />
             </div>
           </div>
@@ -490,37 +744,48 @@ export default function Discounts() {
 
       {/* Working list */}
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
+        <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3 flex-wrap">
           <div>
             <CardTitle className="text-base">Working List</CardTitle>
             <CardDescription>
               {rows.length === 0
-                ? "Scan or search products above to start adding them here."
+                ? "Scan, search by name or search by price above to start adding products here."
                 : `${rows.length} product(s) in list · ${readyRows.length} ready to save`}
             </CardDescription>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            {rows.length > 0 && (
+              <Button
+                variant="ghost"
+                onClick={clearList}
+                title="Clear the working list"
+              >
+                <X className="h-4 w-4 mr-1" /> Clear list
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={handlePrintLabels}
               disabled={rows.length === 0}
-              title="Prints labels for products with a pending discount, or for already-discounted products in the list."
+              title="Print labels for the products in the list"
             >
               <Printer className="h-4 w-4 mr-1" /> Print Labels
             </Button>
             <Button
               onClick={saveAll}
               disabled={saving || readyRows.length === 0}
+              variant={mode === "remove" ? "destructive" : "default"}
             >
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Save Discounts ({readyRows.length})
+              {meta.saveLabel} ({readyRows.length})
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
             <div className="text-sm text-muted-foreground py-10 text-center border border-dashed border-border rounded-lg">
-              No products yet. Scan a barcode or search above.
+              No products yet. Scan a barcode, search by name, or search by
+              price above.
             </div>
           ) : (
             <div className="border border-border rounded-lg overflow-hidden">
@@ -538,7 +803,11 @@ export default function Discounts() {
                     <TableHead>Barcode</TableHead>
                     <TableHead className="text-right">Current Price</TableHead>
                     <TableHead className="text-right w-44">
-                      New Sale Price
+                      {mode === "discount"
+                        ? "New Sale Price"
+                        : mode === "edit"
+                          ? "New Price"
+                          : "Will Restore To"}
                     </TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
@@ -549,7 +818,10 @@ export default function Discounts() {
                     if (!p) {
                       return (
                         <TableRow key={r.productId}>
-                          <TableCell colSpan={6} className="text-muted-foreground text-sm">
+                          <TableCell
+                            colSpan={6}
+                            className="text-muted-foreground text-sm"
+                          >
                             (Product no longer available)
                             <Button
                               variant="ghost"
@@ -567,10 +839,28 @@ export default function Discounts() {
                       p.originalPrice != null && p.originalPrice > p.price;
                     const newPriceNum =
                       typeof r.newPrice === "number" ? r.newPrice : NaN;
-                    const isReady =
-                      Number.isFinite(newPriceNum) &&
-                      newPriceNum > 0 &&
-                      newPriceNum < p.price;
+
+                    let isReady = false;
+                    let hint: string | null = null;
+                    if (mode === "discount") {
+                      isReady =
+                        Number.isFinite(newPriceNum) &&
+                        newPriceNum > 0 &&
+                        newPriceNum < p.price;
+                      if (r.newPrice !== "" && !isReady)
+                        hint = "Must be lower than current price";
+                    } else if (mode === "edit") {
+                      isReady =
+                        Number.isFinite(newPriceNum) &&
+                        newPriceNum > 0 &&
+                        newPriceNum !== p.price;
+                      if (r.newPrice !== "" && !isReady)
+                        hint = "Enter a positive price different from current";
+                    } else {
+                      // remove mode
+                      isReady = isDiscounted;
+                    }
+
                     return (
                       <TableRow key={r.productId}>
                         <TableCell>
@@ -591,7 +881,7 @@ export default function Discounts() {
                                 variant="outline"
                                 className="ml-2 text-[10px] py-0 px-1.5 border-emerald-500/40 text-emerald-500"
                               >
-                                Already on discount
+                                On discount
                               </Badge>
                             )}
                           </div>
@@ -616,33 +906,51 @@ export default function Discounts() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="New price"
-                            value={r.newPrice === "" ? "" : String(r.newPrice)}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (v === "") {
-                                updateRowPrice(r.productId, "");
-                              } else {
-                                const n = Number(v);
-                                updateRowPrice(
-                                  r.productId,
-                                  Number.isFinite(n) ? n : "",
-                                );
-                              }
-                            }}
-                            className={
-                              r.newPrice !== "" && !isReady
-                                ? "border-amber-500/60"
-                                : ""
-                            }
-                          />
-                          {r.newPrice !== "" && !isReady && (
-                            <div className="text-[10px] text-amber-500 mt-1 text-left">
-                              Must be lower than current price
-                            </div>
+                          {mode === "remove" ? (
+                            isDiscounted ? (
+                              <span className="font-semibold">
+                                {formatCurrency(p.originalPrice!)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Not on discount
+                              </span>
+                            )
+                          ) : (
+                            <>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder={
+                                  mode === "discount" ? "Sale price" : "New price"
+                                }
+                                value={
+                                  r.newPrice === "" ? "" : String(r.newPrice)
+                                }
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v === "") {
+                                    updateRowPrice(r.productId, "");
+                                  } else {
+                                    const n = Number(v);
+                                    updateRowPrice(
+                                      r.productId,
+                                      Number.isFinite(n) ? n : "",
+                                    );
+                                  }
+                                }}
+                                className={
+                                  r.newPrice !== "" && !isReady
+                                    ? "border-amber-500/60"
+                                    : ""
+                                }
+                              />
+                              {hint && (
+                                <div className="text-[10px] text-amber-500 mt-1 text-left">
+                                  {hint}
+                                </div>
+                              )}
+                            </>
                           )}
                         </TableCell>
                         <TableCell>

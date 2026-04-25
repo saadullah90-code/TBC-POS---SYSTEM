@@ -83,10 +83,10 @@ export default function Receipt() {
       `}</style>
 
       <div className="center">
-        <div className="brand">De Luxury Boutique</div>
+        <div className="brand">THE BRAND GALLERY</div>
         <div className="small muted">Retail Excellence</div>
-        <div className="small muted">123 Commerce St., Karachi</div>
-        <div className="small muted">Tel: (021) 1234-567</div>
+        <div className="small muted">Plaza 172, Sector H, Phase 1, Dha, Lahore.</div>
+        <div className="small muted">Tel: 03004707675</div>
       </div>
 
       <div className="dashed" />
@@ -140,10 +140,10 @@ export default function Receipt() {
       <div className="dashed" />
 
       <div className="center small" style={{ marginTop: 6 }}>
-        Thank you for shopping with us!
+        Thank you for shopping with us !
       </div>
       <div className="center small muted">
-        Returns within 30 days with this receipt
+        Return or Exchange within 7 days with this reciept
       </div>
       <div className="center small muted" style={{ marginTop: 6 }}>
         * * * * *

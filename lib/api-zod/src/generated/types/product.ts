@@ -12,6 +12,8 @@ export interface Product {
   name: string;
   title: string;
   price: number;
+  /** @nullable */
+  originalPrice: number | null;
   category: string;
   stock: number;
   barcode: string;

@@ -7,6 +7,10 @@ export const productsTable = pgTable("products", {
   name: text("name").notNull(),
   title: text("title").notNull(),
   price: doublePrecision("price").notNull(),
+  // When a product is put on discount, `price` becomes the sale price
+  // (what the customer pays) and `originalPrice` holds the old price so
+  // the barcode label can show it struck through. NULL = no discount.
+  originalPrice: doublePrecision("original_price"),
   category: text("category").notNull(),
   stock: integer("stock").notNull().default(0),
   barcode: text("barcode").notNull().unique(),

@@ -10,6 +10,8 @@ interface LabelSpec {
   name: string;
   title: string;
   price: number;
+  /** When set and greater than `price`, label shows it struck through. */
+  originalPrice: number | null;
   barcode: string;
   size: string | null;
 }
@@ -34,11 +36,20 @@ function Label({ spec }: { spec: LabelSpec }) {
       console.error(e);
     }
   }, [spec.barcode]);
+  const showStrike =
+    spec.originalPrice != null &&
+    Number.isFinite(spec.originalPrice) &&
+    spec.originalPrice > spec.price;
   return (
     <div className="label">
       <div className="label-name">{spec.name}</div>
       {spec.title && spec.title !== spec.name && (
         <div className="label-title">{spec.title}</div>
+      )}
+      {showStrike && (
+        <div className="label-orig">
+          Rs. {Number(spec.originalPrice).toLocaleString("en-PK", { maximumFractionDigits: 2 })}
+        </div>
       )}
       <div className="label-line">
         <span className="label-price">
@@ -58,6 +69,7 @@ function specsForProduct(p: Product): LabelSpec[] {
       name: p.name,
       title: p.title,
       price: p.price,
+      originalPrice: p.originalPrice ?? null,
       barcode: v.barcode,
       size: v.size,
     }));
@@ -68,6 +80,7 @@ function specsForProduct(p: Product): LabelSpec[] {
       name: p.name,
       title: p.title,
       price: p.price,
+      originalPrice: p.originalPrice ?? null,
       barcode: p.barcode,
       size: null,
     },
@@ -146,6 +159,7 @@ export default function BarcodePrintBulk() {
               price: p.price,
               barcode: v.barcode,
               size: v.size,
+              originalPrice: p.originalPrice ?? null,
             };
             const count = useStock
               ? Math.max(0, Math.floor(v.stock ?? 0))
@@ -222,6 +236,7 @@ export default function BarcodePrintBulk() {
         .label:last-child { page-break-after: auto; break-after: auto; }
         .label-name { font-size: ${nameSize}px; font-weight: 800; line-height: 1.1; margin-bottom: 1px; max-height: 2.4em; overflow: hidden; }
         .label-title { font-size: ${titleSize}px; font-weight: 500; line-height: 1.1; margin-bottom: 1px; max-height: 2.2em; overflow: hidden; color: #333; }
+        .label-orig { font-size: ${priceSize * 0.78}px; font-weight: 500; color: #444; text-decoration: line-through; line-height: 1.05; margin-bottom: 0; }
         .label-line { display: flex; gap: 6px; align-items: baseline; margin-bottom: 1px; }
         .label-price { font-size: ${priceSize}px; font-weight: 700; }
         .label-size { font-size: ${priceSize * 0.8}px; font-weight: 700; padding: 0 4px; border: 1px solid #000; border-radius: 2px; }

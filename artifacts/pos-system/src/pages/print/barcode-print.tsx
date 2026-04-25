@@ -13,7 +13,18 @@ export default function BarcodePrint() {
   const name = search.get("name") || "";
   const title = search.get("title") || "";
   const price = search.get("price") || "";
+  const originalPriceRaw = search.get("originalPrice") || "";
   const size = search.get("size") || "";
+
+  // Discount only kicks in when a numeric originalPrice strictly higher than
+  // the sale price is provided in the URL. Anything else means "no discount".
+  const priceNum = Number(price);
+  const origNum = Number(originalPriceRaw);
+  const hasDiscount =
+    !!originalPriceRaw &&
+    Number.isFinite(origNum) &&
+    Number.isFinite(priceNum) &&
+    origNum > priceNum;
 
   // Configured sticker dimensions — must match the printer driver exactly.
   const dims = useMemo(() => getLabelDimensions(), []);
@@ -94,6 +105,20 @@ export default function BarcodePrint() {
         {title && title !== name && (
           <div style={{ fontSize: titleSize, fontWeight: 500, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.2em", overflow: "hidden", color: "#333" }}>
             {title}
+          </div>
+        )}
+        {hasDiscount && (
+          <div
+            style={{
+              fontSize: priceSize * 0.78,
+              fontWeight: 500,
+              color: "#444",
+              textDecoration: "line-through",
+              lineHeight: 1.05,
+              marginBottom: 0,
+            }}
+          >
+            Rs. {origNum.toLocaleString("en-PK", { maximumFractionDigits: 2 })}
           </div>
         )}
         <div style={{ fontSize: priceSize, fontWeight: 700, marginBottom: 1, display: "flex", gap: 6, alignItems: "baseline" }}>

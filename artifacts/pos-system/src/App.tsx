@@ -9,6 +9,7 @@ import Dashboard from "@/pages/dashboard/dashboard";
 import Pos from "@/pages/pos/pos";
 import Inventory from "@/pages/inventory/inventory";
 import BulkAdd from "@/pages/inventory/bulk-add";
+import Discounts from "@/pages/inventory/discounts";
 import Users from "@/pages/staff/users";
 import Sales from "@/pages/sales/sales";
 import CustomerDisplay from "@/pages/customer-display/customer-display";
@@ -73,6 +74,12 @@ function Router() {
       <Route path="/inventory/bulk-add">
         <AuthWrapper allowedRoles={["admin", "inventory"]}>
           <Layout><BulkAdd /></Layout>
+        </AuthWrapper>
+      </Route>
+
+      <Route path="/inventory/discounts">
+        <AuthWrapper allowedRoles={["admin", "inventory"]}>
+          <Layout><Discounts /></Layout>
         </AuthWrapper>
       </Route>
 

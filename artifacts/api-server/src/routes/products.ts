@@ -38,6 +38,7 @@ function formatProduct(p: ProductRow, variants: VariantRow[] = []) {
     name: p.name,
     title: p.title,
     price: p.price,
+    originalPrice: p.originalPrice ?? null,
     category: p.category,
     stock: p.stock,
     barcode: p.barcode,

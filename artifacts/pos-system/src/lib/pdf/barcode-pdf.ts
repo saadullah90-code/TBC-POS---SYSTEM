@@ -6,6 +6,9 @@ export interface LabelSpec {
   name: string;
   title: string;
   price: number;
+  /** Pre-discount price. When present (and greater than `price`), the label
+   * shows it struck through next to the new sale price. */
+  originalPrice?: number | null;
   barcode: string;
   size?: string | null;
 }
@@ -164,6 +167,30 @@ function drawLabel(
     doc.text(titleLine, cx, y + titleSize * 0.32, { align: "center" });
     y += lineH(titleSize);
     doc.setTextColor(0);
+  }
+
+  // ----- Optional pre-discount price (struck through) on its own line -----
+  const hasDiscount =
+    label.originalPrice != null &&
+    Number.isFinite(label.originalPrice) &&
+    (label.originalPrice as number) > Number(label.price);
+  if (hasDiscount) {
+    const origSize = priceSize * 0.78;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(origSize);
+    doc.setTextColor(80);
+    const origText = `Rs. ${Number(label.originalPrice).toLocaleString("en-PK", {
+      maximumFractionDigits: 2,
+    })}`;
+    const origW = doc.getTextWidth(origText);
+    const origX = cx - origW / 2;
+    const origY = y + origSize * 0.32;
+    doc.text(origText, cx, origY, { align: "center" });
+    // Strike-through line straight across the centre of the text glyphs.
+    doc.setLineWidth(0.25);
+    doc.line(origX - 0.4, origY - origSize * 0.18, origX + origW + 0.4, origY - origSize * 0.18);
+    doc.setTextColor(0);
+    y += lineH(origSize);
   }
 
   // ----- Price + optional size badge on one line -----

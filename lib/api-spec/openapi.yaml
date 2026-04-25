@@ -764,6 +764,8 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: ["number", "null"]
         category:
           type: string
         stock:
@@ -781,6 +783,7 @@ components:
         - name
         - title
         - price
+        - originalPrice
         - category
         - stock
         - barcode
@@ -848,6 +851,8 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: ["number", "null"]
         category:
           type: string
         stock:
@@ -868,6 +873,8 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: ["number", "null"]
         category:
           type: string
         stock:

@@ -141,6 +141,7 @@ export const ListProductsResponseItem = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "price": zod.number(),
+  "originalPrice": zod.number().nullable(),
   "category": zod.string(),
   "stock": zod.number(),
   "barcode": zod.string(),
@@ -164,6 +165,7 @@ export const CreateProductBody = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "price": zod.number(),
+  "originalPrice": zod.number().nullish(),
   "category": zod.string(),
   "stock": zod.number()
 })
@@ -181,6 +183,7 @@ export const GetProductResponse = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "price": zod.number(),
+  "originalPrice": zod.number().nullable(),
   "category": zod.string(),
   "stock": zod.number(),
   "barcode": zod.string(),
@@ -207,6 +210,7 @@ export const UpdateProductBody = zod.object({
   "name": zod.string().optional(),
   "title": zod.string().optional(),
   "price": zod.number().optional(),
+  "originalPrice": zod.number().nullish(),
   "category": zod.string().optional(),
   "stock": zod.number().optional()
 })
@@ -216,6 +220,7 @@ export const UpdateProductResponse = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "price": zod.number(),
+  "originalPrice": zod.number().nullable(),
   "category": zod.string(),
   "stock": zod.number(),
   "barcode": zod.string(),
@@ -251,6 +256,7 @@ export const GetProductByBarcodeResponse = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "price": zod.number(),
+  "originalPrice": zod.number().nullable(),
   "category": zod.string(),
   "stock": zod.number(),
   "barcode": zod.string(),
@@ -499,6 +505,7 @@ export const GetLowStockProductsResponseItem = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "price": zod.number(),
+  "originalPrice": zod.number().nullable(),
   "category": zod.string(),
   "stock": zod.number(),
   "barcode": zod.string(),

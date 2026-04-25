@@ -70,13 +70,34 @@ import { silentPrintBarcodeLabels } from "@/lib/silent-barcode";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const productSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  title: z.string().min(1, "Title is required"),
-  price: z.coerce.number().min(0, "Price must be >= 0"),
-  category: z.string().min(1, "Category is required"),
-  stock: z.coerce.number().int().min(0, "Stock must be >= 0"),
-});
+const productSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    title: z.string().min(1, "Title is required"),
+    price: z.coerce.number().min(0, "Price must be >= 0"),
+    // Optional pre-discount / compare price. Empty string and 0 both mean
+    // "no discount". We keep this as a plain optional union (no transform)
+    // so react-hook-form's input/output types stay identical and resolver
+    // typing matches; conversion to `number | null` happens in onSubmit.
+    originalPrice: z
+      .union([z.literal(""), z.coerce.number().min(0)])
+      .optional(),
+    category: z.string().min(1, "Category is required"),
+    stock: z.coerce.number().int().min(0, "Stock must be >= 0"),
+  })
+  .refine(
+    (data) => {
+      if (data.originalPrice === "" || data.originalPrice == null) return true;
+      const op = Number(data.originalPrice);
+      // Treat 0 as "no discount" — accept it.
+      if (op === 0) return true;
+      return op > data.price;
+    },
+    {
+      message: "Original price must be greater than the sale price",
+      path: ["originalPrice"],
+    },
+  );
 
 const PRESET_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 
@@ -86,6 +107,7 @@ function buildBarcodePrintUrl(
   price: number,
   barcode: string,
   size?: string | null,
+  originalPrice?: number | null,
 ) {
   const params = new URLSearchParams({
     name,
@@ -93,6 +115,9 @@ function buildBarcodePrintUrl(
     price: String(price),
   });
   if (size) params.set("size", size);
+  if (originalPrice != null && originalPrice > price) {
+    params.set("originalPrice", String(originalPrice));
+  }
   return `/inventory/barcode-print/${barcode}?${params.toString()}`;
 }
 
@@ -238,6 +263,7 @@ function SizesSection({
       price: number;
       barcode: string;
       size: string | null;
+      originalPrice?: number | null;
     }> = [];
     for (const v of existingVariants) {
       const qty = Math.max(0, Math.floor(v.stock ?? 0));
@@ -248,6 +274,7 @@ function SizesSection({
           price: product.price,
           barcode: v.barcode,
           size: v.size,
+          originalPrice: product.originalPrice ?? null,
         });
       }
     }
@@ -444,6 +471,7 @@ function SizesSection({
                                       price: product!.price,
                                       barcode: v.barcode,
                                       size: v.size,
+                                      originalPrice: product!.originalPrice ?? null,
                                     },
                                   ],
                                   buildBarcodePrintUrl(
@@ -452,6 +480,7 @@ function SizesSection({
                                     product!.price,
                                     v.barcode,
                                     v.size,
+                                    product!.originalPrice ?? null,
                                   ),
                                   1,
                                 )
@@ -569,7 +598,14 @@ export default function Inventory() {
 
   const form = useForm<z.infer<typeof productSchema>>({
     resolver: zodResolver(productSchema),
-    defaultValues: { name: "", title: "", price: 0, category: "", stock: 0 },
+    defaultValues: {
+      name: "",
+      title: "",
+      price: 0,
+      originalPrice: "",
+      category: "",
+      stock: 0,
+    },
   });
 
   useEffect(() => {
@@ -578,6 +614,8 @@ export default function Inventory() {
         name: editingProduct.name,
         title: editingProduct.title,
         price: editingProduct.price,
+        originalPrice:
+          editingProduct.originalPrice != null ? editingProduct.originalPrice : "",
         category: editingProduct.category,
         stock: editingProduct.stock,
       });
@@ -592,7 +630,14 @@ export default function Inventory() {
   const handleOpenAdd = () => {
     setEditingProduct(null);
     setPendingSizes([]);
-    form.reset({ name: "", title: "", price: 0, category: "", stock: 0 });
+    form.reset({
+      name: "",
+      title: "",
+      price: 0,
+      originalPrice: "",
+      category: "",
+      stock: 0,
+    });
     setIsAddOpen(true);
   };
 
@@ -602,7 +647,16 @@ export default function Inventory() {
     setPendingSizes([]);
   };
 
-  const onSubmit = (values: z.infer<typeof productSchema>) => {
+  const onSubmit = (rawValues: z.infer<typeof productSchema>) => {
+    // Normalize originalPrice from form representation ("" | undefined | 0 | number)
+    // into the API representation (number | null).
+    const normalizedOriginalPrice =
+      rawValues.originalPrice === "" ||
+      rawValues.originalPrice == null ||
+      Number(rawValues.originalPrice) === 0
+        ? null
+        : Number(rawValues.originalPrice);
+    const values = { ...rawValues, originalPrice: normalizedOriginalPrice };
     if (editingProduct) {
       updateProduct.mutate(
         { id: editingProduct.id, data: values },
@@ -701,6 +755,7 @@ export default function Inventory() {
           price: p.price,
           barcode: v.barcode,
           size: v.size as string | null,
+          originalPrice: p.originalPrice ?? null,
         }));
       }
       return [
@@ -710,6 +765,7 @@ export default function Inventory() {
           price: p.price,
           barcode: p.barcode,
           size: null as string | null,
+          originalPrice: p.originalPrice ?? null,
         },
       ];
     });
@@ -929,7 +985,18 @@ export default function Inventory() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(product.price)}
+                        {product.originalPrice != null && product.originalPrice > product.price ? (
+                          <div className="flex flex-col items-end leading-tight">
+                            <span className="text-[11px] text-muted-foreground line-through font-normal">
+                              {formatCurrency(product.originalPrice)}
+                            </span>
+                            <span className="text-emerald-500 font-semibold">
+                              {formatCurrency(product.price)}
+                            </span>
+                          </div>
+                        ) : (
+                          formatCurrency(product.price)
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {hasVariants ? (
@@ -961,6 +1028,7 @@ export default function Inventory() {
                                     price: product.price,
                                     barcode: product.barcode,
                                     size: null,
+                                    originalPrice: product.originalPrice ?? null,
                                   },
                                 ],
                                 buildBarcodePrintUrl(
@@ -968,6 +1036,8 @@ export default function Inventory() {
                                   product.title,
                                   product.price,
                                   product.barcode,
+                                  null,
+                                  product.originalPrice ?? null,
                                 ),
                                 1,
                               )
@@ -1055,7 +1125,7 @@ export default function Inventory() {
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price (PKR)</FormLabel>
+                      <FormLabel>Sale Price (PKR)</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" {...field} />
                       </FormControl>
@@ -1077,6 +1147,33 @@ export default function Inventory() {
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="originalPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Original Price (PKR){" "}
+                      <span className="text-[11px] font-normal text-muted-foreground">
+                        — leave blank if not on discount
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 8500 (will print struck through)"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-[11px] text-muted-foreground">
+                      When set, the barcode label shows this price cut/struck through next to the sale price above.
+                    </p>
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="category"

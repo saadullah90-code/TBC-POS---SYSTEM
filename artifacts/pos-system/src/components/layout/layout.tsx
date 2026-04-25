@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Package,
+  Tag,
   Users,
   LogOut,
   Receipt,
@@ -66,6 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Management",
       items: [
         { href: "/inventory", label: "Inventory", icon: Package, roles: ["admin", "inventory"] },
+        { href: "/inventory/discounts", label: "Discounts", icon: Tag, roles: ["admin", "inventory"] },
         { href: "/sales", label: "Sales History", icon: Receipt, roles: ["admin"] },
         { href: "/users", label: "Staff", icon: Users, roles: ["admin"] },
       ],

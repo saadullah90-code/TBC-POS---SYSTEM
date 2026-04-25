@@ -62,6 +62,7 @@ import {
   Ruler,
   X,
   Check,
+  ClipboardList,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { printDocument } from "@/lib/print";
@@ -510,6 +511,9 @@ export default function Inventory() {
   const [pendingSizes, setPendingSizes] = useState<PendingSize[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [copiesPerLabel, setCopiesPerLabel] = useState<number>(1);
+  const [inventoryCheckOpen, setInventoryCheckOpen] = useState(false);
+  const [checkSearch, setCheckSearch] = useState("");
+  const [checkCategory, setCheckCategory] = useState<string>("all");
   const [, setLocation] = useLocation();
 
   const { toast } = useToast();
@@ -712,6 +716,13 @@ export default function Inventory() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setInventoryCheckOpen(true)}
+            className="font-semibold"
+          >
+            <ClipboardList className="mr-2 h-4 w-4" /> Inventory Check
+          </Button>
           <Button
             variant="outline"
             onClick={() => setLocation("/inventory/bulk-add")}
@@ -1076,6 +1087,295 @@ export default function Inventory() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <InventoryCheckDialog
+        open={inventoryCheckOpen}
+        onOpenChange={setInventoryCheckOpen}
+        products={products ?? []}
+        categories={categories}
+        search={checkSearch}
+        setSearch={setCheckSearch}
+        category={checkCategory}
+        setCategory={setCheckCategory}
+      />
     </div>
+  );
+}
+
+interface InventoryCheckDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  products: Product[];
+  categories: string[];
+  search: string;
+  setSearch: (v: string) => void;
+  category: string;
+  setCategory: (v: string) => void;
+}
+
+function InventoryCheckDialog({
+  open,
+  onOpenChange,
+  products,
+  categories,
+  search,
+  setSearch,
+  category,
+  setCategory,
+}: InventoryCheckDialogProps) {
+  // Discover all sizes actually used across products, ordered by PRESET first
+  const sizesInUse = new Set<string>();
+  for (const p of products) {
+    for (const v of p.variants ?? []) {
+      if (v.size) sizesInUse.add(v.size);
+    }
+  }
+  const orderedSizes: string[] = [];
+  for (const s of PRESET_SIZES) {
+    if (sizesInUse.has(s)) {
+      orderedSizes.push(s);
+      sizesInUse.delete(s);
+    }
+  }
+  orderedSizes.push(...Array.from(sizesInUse).sort());
+
+  // Apply filters
+  const filtered = products.filter((p) => {
+    if (category !== "all" && p.category !== category) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const hay = `${p.name} ${p.title} ${p.barcode ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Stats
+  let totalPieces = 0;
+  let outOfStockSizes = 0;
+  let inStockSizes = 0;
+  for (const p of filtered) {
+    if (p.variants && p.variants.length > 0) {
+      for (const v of p.variants) {
+        totalPieces += v.stock ?? 0;
+        if ((v.stock ?? 0) > 0) inStockSizes++;
+        else outOfStockSizes++;
+      }
+    } else {
+      totalPieces += p.stock ?? 0;
+    }
+  }
+
+  const productTotalStock = (p: Product) => {
+    if (p.variants && p.variants.length > 0) {
+      return p.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+    }
+    return p.stock ?? 0;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b border-border">
+          <DialogTitle className="flex items-center gap-2 text-2xl">
+            <ClipboardList className="h-6 w-6" />
+            Inventory Check
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Saari inventory ek nazar mein — har product ke kon kon se size available
+            hain aur kitne pieces hain.
+          </p>
+        </DialogHeader>
+
+        <div className="grid grid-cols-3 gap-3 px-6 py-4 border-b border-border bg-secondary/30">
+          <div className="rounded-md border border-border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Total Products</div>
+            <div className="text-2xl font-bold">{filtered.length}</div>
+          </div>
+          <div className="rounded-md border border-border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Total Pieces</div>
+            <div className="text-2xl font-bold">{totalPieces}</div>
+          </div>
+          <div className="rounded-md border border-border bg-card p-3">
+            <div className="text-xs text-muted-foreground">
+              In-Stock / Out-of-Stock Sizes
+            </div>
+            <div className="text-2xl font-bold">
+              <span className="text-emerald-500">{inStockSizes}</span>
+              <span className="text-muted-foreground"> / </span>
+              <span className="text-destructive">{outOfStockSizes}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 px-6 py-3 border-b border-border">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products or barcode..."
+              className="pl-9 bg-background"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-[200px] bg-background">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <ScrollArea className="flex-1 px-6">
+          <Table>
+            <TableHeader className="bg-secondary/50 sticky top-0 z-10">
+              <TableRow>
+                <TableHead className="min-w-[220px]">Product</TableHead>
+                <TableHead className="w-[120px]">Category</TableHead>
+                {orderedSizes.length === 0 ? (
+                  <TableHead className="text-center">Stock</TableHead>
+                ) : (
+                  <>
+                    {orderedSizes.map((s) => (
+                      <TableHead key={s} className="text-center w-[80px]">
+                        {s}
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-center w-[100px]">Base</TableHead>
+                  </>
+                )}
+                <TableHead className="text-center w-[90px] font-bold">
+                  Total
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={orderedSizes.length + 4}
+                    className="text-center text-muted-foreground py-10"
+                  >
+                    Koi product nahi mila.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map((p) => {
+                  const total = productTotalStock(p);
+                  const hasVariants = (p.variants?.length ?? 0) > 0;
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <div className="font-medium">{p.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.title}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {p.category}
+                        </Badge>
+                      </TableCell>
+                      {orderedSizes.length === 0 ? (
+                        <TableCell className="text-center">
+                          {(p.stock ?? 0) > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
+                              <Check className="h-4 w-4" />
+                              {p.stock}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-destructive font-semibold">
+                              <X className="h-4 w-4" />0
+                            </span>
+                          )}
+                        </TableCell>
+                      ) : (
+                        <>
+                          {orderedSizes.map((size) => {
+                            const variant = p.variants?.find(
+                              (v) => v.size === size,
+                            );
+                            if (!variant) {
+                              return (
+                                <TableCell
+                                  key={size}
+                                  className="text-center text-muted-foreground/40"
+                                >
+                                  —
+                                </TableCell>
+                              );
+                            }
+                            const stock = variant.stock ?? 0;
+                            return (
+                              <TableCell key={size} className="text-center">
+                                {stock > 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
+                                    <Check className="h-4 w-4" />
+                                    {stock}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-destructive font-semibold">
+                                    <X className="h-4 w-4" />0
+                                  </span>
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                          <TableCell className="text-center text-muted-foreground">
+                            {hasVariants ? (
+                              "—"
+                            ) : (p.stock ?? 0) > 0 ? (
+                              <span className="text-emerald-500 font-semibold">
+                                {p.stock}
+                              </span>
+                            ) : (
+                              <span className="text-destructive font-semibold">
+                                0
+                              </span>
+                            )}
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell className="text-center">
+                        <Badge
+                          variant={total > 0 ? "default" : "destructive"}
+                          className="font-bold"
+                        >
+                          {total}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+
+        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-secondary/30">
+          <div className="text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1 mr-3">
+              <Check className="h-3 w-3 text-emerald-500" /> Available
+            </span>
+            <span className="inline-flex items-center gap-1 mr-3">
+              <X className="h-3 w-3 text-destructive" /> Out of stock
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="text-muted-foreground/40">—</span> Size not added
+            </span>
+          </div>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

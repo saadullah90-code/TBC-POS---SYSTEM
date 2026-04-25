@@ -241,6 +241,19 @@ export default function Discounts() {
     });
   };
 
+  // Resolve the effective new price for a row, falling back to the bulk
+  // price field when the row is selected and has no per-row value yet. This
+  // matches the user's mental model: "type a price, select rows, press Save".
+  const resolveNewPrice = (r: DraftRow): number => {
+    const own = typeof r.newPrice === "number" ? r.newPrice : NaN;
+    if (Number.isFinite(own)) return own;
+    if (selected.has(r.productId)) {
+      const bulk = Number(bulkPrice);
+      if (bulkPrice !== "" && Number.isFinite(bulk)) return bulk;
+    }
+    return NaN;
+  };
+
   // Determine which rows are "ready" — ready means the row will produce a
   // valid update on save, given the active mode.
   const readyRows = useMemo(() => {
@@ -251,7 +264,7 @@ export default function Discounts() {
 
         if (mode === "discount") {
           // Discount: new price must be > 0 and strictly less than current
-          const np = typeof r.newPrice === "number" ? r.newPrice : NaN;
+          const np = resolveNewPrice(r);
           if (!Number.isFinite(np) || np <= 0) return null;
           if (np >= p.price) return null;
           return { product: p, newPrice: np };
@@ -259,7 +272,7 @@ export default function Discounts() {
 
         if (mode === "edit") {
           // Edit price: new price must be > 0 and different from current
-          const np = typeof r.newPrice === "number" ? r.newPrice : NaN;
+          const np = resolveNewPrice(r);
           if (!Number.isFinite(np) || np <= 0) return null;
           if (np === p.price) return null;
           return { product: p, newPrice: np };
@@ -272,7 +285,8 @@ export default function Discounts() {
         return null;
       })
       .filter((x): x is { product: Product; newPrice: number } => x != null);
-  }, [rows, byId, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, byId, mode, selected, bulkPrice]);
 
   const saveAll = async () => {
     if (readyRows.length === 0) {
@@ -374,7 +388,7 @@ export default function Discounts() {
     for (const r of rows) {
       const p = byId.get(r.productId);
       if (!p) continue;
-      const newPrice = typeof r.newPrice === "number" ? r.newPrice : NaN;
+      const newPrice = resolveNewPrice(r);
       if (
         mode === "discount" &&
         Number.isFinite(newPrice) &&

@@ -130,9 +130,6 @@ export function SaleDetailsDialog({ sale, open, onClose }: Props) {
           <div className="flex justify-between text-muted-foreground">
             <span>Subtotal</span><span>{formatPKR(sale.totalAmount)}</span>
           </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>Tax (0%)</span><span>{formatPKR(0)}</span>
-          </div>
           <div className="flex justify-between items-center pt-2 border-t border-border">
             <span className="text-base font-semibold text-foreground">Total</span>
             <span className="text-2xl font-black text-primary">{formatPKR(sale.totalAmount)}</span>

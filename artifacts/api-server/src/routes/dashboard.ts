@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
-import { db, salesTable, productsTable } from "@workspace/db";
+import { db, salesTable, productsTable, productVariantsTable } from "@workspace/db";
 import {
   GetDashboardSummaryQueryParams,
   GetSalesChartQueryParams,
@@ -41,7 +41,10 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const [productStats] = await db
     .select({
       totalProducts: sql<number>`COUNT(*)`,
-      lowStockCount: sql<number>`COUNT(*) FILTER (WHERE ${productsTable.stock} <= 5)`,
+      // Variant-aware: a sized product's real on-hand is SUM of its variants;
+      // products.stock is unused for sized products. COALESCE falls back to
+      // products.stock for plain non-sized items.
+      lowStockCount: sql<number>`COUNT(*) FILTER (WHERE COALESCE((SELECT SUM(${productVariantsTable.stock}) FROM ${productVariantsTable} WHERE ${productVariantsTable.productId} = ${productsTable.id}), ${productsTable.stock}) <= 5)`,
     })
     .from(productsTable);
 

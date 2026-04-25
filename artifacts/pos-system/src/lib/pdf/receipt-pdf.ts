@@ -77,9 +77,9 @@ function drawReceipt(doc: jsPDF, sale: Sale): number {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(80);
-  doc.text("Retail Excellence", centerX, y + 1, { align: "center" });
+  doc.text("The Ultimate in Luxury", centerX, y + 1, { align: "center" });
   doc.text("Plaza 172, Sector H, Phase 1, Dha, Lahore.", centerX, y + 4, { align: "center" });
-  doc.text("Tel: 03004707675", centerX, y + 7, { align: "center" });
+  doc.text("Contact us: 03004707675", centerX, y + 7, { align: "center" });
   y += 9;
 
   doc.setTextColor(0);
@@ -136,8 +136,6 @@ function drawReceipt(doc: jsPDF, sale: Sale): number {
   // ---- Totals ----
   doc.setFontSize(8);
   drawRow(doc, leftMargin, y, innerWidth, "Subtotal", formatPKR(sale.totalAmount));
-  y += lineHeight;
-  drawRow(doc, leftMargin, y, innerWidth, "Tax (0%)", formatPKR(0));
   y += lineHeight + 1;
 
   drawDashedLine(doc, leftMargin, y, rightEdge);

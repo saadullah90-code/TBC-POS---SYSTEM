@@ -37,9 +37,9 @@ export function ReceiptSlip({ sale }: { sale: Sale }) {
 
       <div className="center">
         <div className="brand">THE BRAND GALLERY</div>
-        <div className="small muted">Retail Excellence</div>
+        <div className="small muted">The Ultimate in Luxury</div>
         <div className="small muted">Plaza 172, Sector H, Phase 1, Dha, Lahore.</div>
-        <div className="small muted">Tel: 03004707675</div>
+        <div className="small muted">Contact us: 03004707675</div>
       </div>
 
       <div className="dashed" />
@@ -74,7 +74,6 @@ export function ReceiptSlip({ sale }: { sale: Sale }) {
       <div className="dashed" />
 
       <div className="row"><span>Subtotal</span><span>{formatPKR(sale.totalAmount)}</span></div>
-      <div className="row"><span>Tax (0%)</span><span>{formatPKR(0)}</span></div>
       <div className="dashed" />
       <div className="row total-row"><span>TOTAL</span><span>{formatPKR(sale.totalAmount)}</span></div>
 

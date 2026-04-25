@@ -232,21 +232,33 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {lowStock?.map((product) => (
-                  <div key={product.id} className="flex items-center justify-between p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none text-foreground line-clamp-1" title={product.name}>
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {product.barcode}
-                      </p>
+                {lowStock?.map((product) => {
+                  // Sized products track stock per variant; products.stock is
+                  // unused for them. Match the inventory page so the badge
+                  // reflects what the cashier actually sees on the floor.
+                  const displayedStock =
+                    product.variants && product.variants.length > 0
+                      ? product.variants.reduce(
+                          (sum, v) => sum + (v.stock ?? 0),
+                          0,
+                        )
+                      : product.stock;
+                  return (
+                    <div key={product.id} className="flex items-center justify-between p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none text-foreground line-clamp-1" title={product.name}>
+                          {product.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {product.barcode}
+                        </p>
+                      </div>
+                      <Badge variant="destructive" className="ml-2 shrink-0">
+                        {displayedStock} left
+                      </Badge>
                     </div>
-                    <Badge variant="destructive" className="ml-2 shrink-0">
-                      {product.stock} left
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
                 {(!lowStock || lowStock.length === 0) && (
                   <div className="col-span-full text-center text-sm text-muted-foreground py-8">
                     All products are well stocked.

@@ -189,7 +189,12 @@ router.get("/products", async (req, res): Promise<void> => {
     );
   }
   if (queryParams.data.lowStock) {
-    conditions.push(sql`${productsTable.stock} <= 5`);
+    // Variant-aware: if a product has sized variants, its real on-hand count
+    // is the SUM of all variant stocks (the products.stock column is unused
+    // for sized products). For non-sized products fall back to products.stock.
+    conditions.push(
+      sql`COALESCE((SELECT SUM(${productVariantsTable.stock}) FROM ${productVariantsTable} WHERE ${productVariantsTable.productId} = ${productsTable.id}), ${productsTable.stock}) <= 5`,
+    );
   }
 
   if (conditions.length > 0) {

@@ -424,34 +424,57 @@ export default function Discounts() {
       return;
     }
 
+    // Expand labels per piece in stock for sized products (so size 33 with
+    // stock 2 prints 2 labels), and use the user-provided `copies` count for
+    // plain non-sized products. The silent printer is then called with
+    // copies=1 because the array is already expanded to the right length.
     const labels: LabelSpec[] = targets.flatMap(
       ({ product, effectivePrice, originalPrice }) => {
         if (product.variants && product.variants.length > 0) {
-          return product.variants.map((v) => ({
-            name: product.name,
-            title: product.title,
-            price: effectivePrice,
-            barcode: v.barcode,
-            size: v.size as string | null,
-            originalPrice,
-          }));
+          const out: LabelSpec[] = [];
+          for (const v of product.variants) {
+            const qty = Math.max(0, Math.floor(v.stock ?? 0));
+            for (let i = 0; i < qty; i++) {
+              out.push({
+                name: product.name,
+                title: product.title,
+                price: effectivePrice,
+                barcode: v.barcode,
+                size: v.size as string | null,
+                originalPrice,
+              });
+            }
+          }
+          return out;
         }
-        return [
-          {
+        const out: LabelSpec[] = [];
+        for (let i = 0; i < Math.max(1, copies); i++) {
+          out.push({
             name: product.name,
             title: product.title,
             price: effectivePrice,
             barcode: product.barcode,
             size: null,
             originalPrice,
-          },
-        ];
+          });
+        }
+        return out;
       },
     );
 
+    if (labels.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nothing to print",
+        description:
+          "Selected products have 0 stock across all sizes. Add stock first.",
+      });
+      return;
+    }
+
     const ids = targets.map((t) => t.product.id).join(",");
-    const fallbackUrl = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copies}`;
-    void silentPrintBarcodeLabels(labels, fallbackUrl, copies);
+    const fallbackUrl = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copies}&useStock=1`;
+    void silentPrintBarcodeLabels(labels, fallbackUrl, 1);
   };
 
   // ---- UI helpers --------------------------------------------------------
@@ -496,7 +519,7 @@ export default function Discounts() {
   const meta = modeMeta[mode];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-full overflow-y-auto p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
@@ -802,7 +825,7 @@ export default function Discounts() {
               price above.
             </div>
           ) : (
-            <div className="border border-border rounded-lg overflow-hidden">
+            <div className="border border-border rounded-lg overflow-auto max-h-[60vh]">
               <Table>
                 <TableHeader>
                   <TableRow>

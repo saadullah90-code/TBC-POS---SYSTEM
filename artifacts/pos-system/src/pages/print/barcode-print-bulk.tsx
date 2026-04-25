@@ -79,6 +79,10 @@ export default function BarcodePrintBulk() {
   const idsParam = search.get("ids") || "";
   const variantIdsParam = search.get("variantIds") || "";
   const copiesPerItem = Math.max(1, parseInt(search.get("copies") || "1", 10) || 1);
+  // When useStock=1, each variant is repeated by its actual stock count
+  // instead of using the flat copiesPerItem multiplier. Lets "Print all
+  // labels" produce N stickers for N pieces in stock.
+  const useStock = search.get("useStock") === "1";
 
   const ids = useMemo(
     () =>
@@ -128,7 +132,9 @@ export default function BarcodePrintBulk() {
       }
     }
 
-    // Per-variant (single variants picked individually)
+    // Per-variant (single variants picked individually). When useStock is set,
+    // each variant gets repeated by its actual stock count (e.g. stock 4 →
+    // 4 labels) instead of the flat copiesPerItem multiplier.
     if (variantIds.length > 0) {
       for (const p of products) {
         for (const v of p.variants ?? []) {
@@ -141,14 +147,17 @@ export default function BarcodePrintBulk() {
               barcode: v.barcode,
               size: v.size,
             };
-            for (let i = 0; i < copiesPerItem; i++) list.push(spec);
+            const count = useStock
+              ? Math.max(0, Math.floor(v.stock ?? 0))
+              : copiesPerItem;
+            for (let i = 0; i < count; i++) list.push(spec);
           }
         }
       }
     }
 
     return list;
-  }, [products, ids, variantIds, copiesPerItem]);
+  }, [products, ids, variantIds, copiesPerItem, useStock]);
 
   useEffect(() => {
     if (printed || !selected.length) return;

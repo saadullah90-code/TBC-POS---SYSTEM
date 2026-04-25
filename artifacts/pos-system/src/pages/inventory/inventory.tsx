@@ -229,17 +229,46 @@ function SizesSection({
 
   const handlePrintAll = () => {
     if (!product || existingVariants.length === 0) return;
-    const variantIds = existingVariants.map((v) => v.id).join(",");
-    const labels = existingVariants.map((v) => ({
-      name: product.name,
-      title: product.title,
-      price: product.price,
-      barcode: v.barcode,
-      size: v.size,
-    }));
+
+    // Build one label entry per piece in stock — i.e. if size 33 has stock 2,
+    // produce 2 labels for size 33. Skip sizes with 0 stock (nothing to label).
+    const labels: Array<{
+      name: string;
+      title: string;
+      price: number;
+      barcode: string;
+      size: string | null;
+    }> = [];
+    for (const v of existingVariants) {
+      const qty = Math.max(0, Math.floor(v.stock ?? 0));
+      for (let i = 0; i < qty; i++) {
+        labels.push({
+          name: product.name,
+          title: product.title,
+          price: product.price,
+          barcode: v.barcode,
+          size: v.size,
+        });
+      }
+    }
+
+    if (labels.length === 0) {
+      toast({
+        title: "Nothing to print",
+        description: "All sizes have 0 stock. Add stock first.",
+      });
+      return;
+    }
+
+    // Fallback URL (when no silent printer is set up) uses useStock=1 so the
+    // bulk print page knows to repeat each variant by its actual stock count.
+    const variantIds = existingVariants
+      .filter((v) => (v.stock ?? 0) > 0)
+      .map((v) => v.id)
+      .join(",");
     void silentPrintBarcodeLabels(
       labels,
-      `/inventory/barcode-print-bulk?variantIds=${variantIds}&copies=1`,
+      `/inventory/barcode-print-bulk?variantIds=${variantIds}&useStock=1`,
       1,
     );
   };

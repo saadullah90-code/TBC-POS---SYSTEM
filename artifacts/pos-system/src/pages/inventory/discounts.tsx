@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
   useUpdateProduct,
+  getListProductsQueryKey,
   type Product,
 } from "@workspace/api-client-react";
 import {
@@ -59,6 +61,7 @@ export default function Discounts() {
   const { data: products, isLoading } = useListProducts({});
   const updateProduct = useUpdateProduct();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<Mode>("discount");
   const [search, setSearch] = useState("");
@@ -305,54 +308,108 @@ export default function Discounts() {
     }
 
     setSaving(true);
-    let ok = 0;
-    let fail = 0;
 
-    for (const { product, newPrice } of readyRows) {
-      try {
-        const data: {
-          name: string;
-          title: string;
-          category: string;
-          stock: number;
-          price: number;
-          originalPrice: number | null;
-        } = {
+    // Build the per-row payload + the new (price, originalPrice) we expect
+    // the server to end up with. We keep this so we can patch the React Query
+    // cache locally the instant each request resolves — the UI then reflects
+    // the change without waiting for a full refetch round-trip.
+    const jobs = readyRows.map(({ product, newPrice }) => {
+      let nextPrice = newPrice;
+      let nextOriginal: number | null = null;
+      if (mode === "discount") {
+        const orig =
+          product.originalPrice != null && product.originalPrice > product.price
+            ? product.originalPrice
+            : product.price;
+        nextOriginal = orig;
+      } else if (mode === "edit") {
+        nextOriginal = null;
+      } else {
+        // remove: newPrice == originalPrice
+        nextOriginal = null;
+      }
+      return {
+        product,
+        nextPrice,
+        nextOriginal,
+        data: {
           name: product.name,
           title: product.title,
           category: product.category,
           stock: product.stock,
-          price: product.price,
-          originalPrice: product.originalPrice ?? null,
-        };
+          price: nextPrice,
+          originalPrice: nextOriginal,
+        },
+      };
+    });
 
-        if (mode === "discount") {
-          // Keep the pre-discount price as originalPrice. If the product was
-          // already discounted, preserve the existing originalPrice so we don't
-          // lose the original ticket value.
-          const orig =
-            product.originalPrice != null && product.originalPrice > product.price
-              ? product.originalPrice
-              : product.price;
-          data.price = newPrice;
-          data.originalPrice = orig;
-        } else if (mode === "edit") {
-          // Just change the actual price. Clear any discount marker so the
-          // displayed price is the real one (no strikethrough left over).
-          data.price = newPrice;
-          data.originalPrice = null;
-        } else {
-          // Remove discount: restore price back to originalPrice and clear it.
-          data.price = newPrice; // newPrice == originalPrice for ready rows
-          data.originalPrice = null;
+    // Patch the cached products list right away so the UI flips state in the
+    // current frame. The actual server confirmation (or failure) is handled
+    // below; on failure we revert that single product back.
+    const productsKeys = queryClient
+      .getQueryCache()
+      .findAll({ queryKey: getListProductsQueryKey() })
+      .map((q) => q.queryKey);
+    const applyPatch = (patches: Map<number, Partial<Product>>) => {
+      for (const key of productsKeys) {
+        queryClient.setQueryData<Product[] | undefined>(key, (old) => {
+          if (!old) return old;
+          return old.map((p) => (patches.has(p.id) ? { ...p, ...patches.get(p.id)! } : p));
+        });
+      }
+    };
+    const optimistic = new Map<number, Partial<Product>>();
+    for (const j of jobs) {
+      optimistic.set(j.product.id, {
+        price: j.nextPrice,
+        originalPrice: j.nextOriginal,
+      });
+    }
+    applyPatch(optimistic);
+
+    // Run the server updates in parallel, but cap the concurrency so a 200-row
+    // batch doesn't open 200 sockets at once. 8 is a comfortable middle-ground
+    // for our Supabase pool.
+    const CONCURRENCY = 8;
+    const results: { ok: boolean; productId: number; original: Product }[] = [];
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < jobs.length) {
+        const idx = cursor++;
+        const j = jobs[idx];
+        try {
+          await updateProduct.mutateAsync({ id: j.product.id, data: j.data });
+          results.push({ ok: true, productId: j.product.id, original: j.product });
+        } catch {
+          results.push({ ok: false, productId: j.product.id, original: j.product });
         }
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, jobs.length) }, () => worker()),
+    );
 
-        await updateProduct.mutateAsync({ id: product.id, data });
+    // Roll back any failed rows in the cache so the UI doesn't lie.
+    const rollback = new Map<number, Partial<Product>>();
+    let ok = 0;
+    let fail = 0;
+    for (const r of results) {
+      if (r.ok) {
         ok++;
-      } catch {
+      } else {
         fail++;
+        rollback.set(r.productId, {
+          price: r.original.price,
+          originalPrice: r.original.originalPrice ?? null,
+        });
       }
     }
+    if (rollback.size > 0) applyPatch(rollback);
+
+    // One background refetch to reconcile any drift between optimistic state
+    // and the server's authoritative copy (e.g. computed fields). This does
+    // NOT block the UI — `saving` is already false by the time it lands.
+    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
 
     setSaving(false);
 

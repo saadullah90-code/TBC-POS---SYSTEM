@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -582,10 +582,37 @@ export default function Inventory() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: products, isLoading } = useListProducts({
+  const { data: productsRaw, isLoading } = useListProducts({
     search: searchTerm || undefined,
     category: categoryFilter !== "all" ? categoryFilter : undefined,
   });
+
+  // Newest products on top — sort by `createdAt` DESC. Done client-side so we
+  // don't have to touch the API contract or change other consumers. The API
+  // already returns `createdAt` as an ISO string for every product, so a simple
+  // numeric Date.parse compare gives the right order. Falls back to id DESC
+  // when timestamps are equal/missing so the order stays stable.
+  const products = useMemo(() => {
+    if (!productsRaw) return productsRaw;
+    return [...productsRaw].sort((a, b) => {
+      const ta = Date.parse(a.createdAt) || 0;
+      const tb = Date.parse(b.createdAt) || 0;
+      if (tb !== ta) return tb - ta;
+      return b.id - a.id;
+    });
+  }, [productsRaw]);
+
+  // A product counts as "NEW" for 24 hours after it was created. Computed
+  // once per render — good enough for a 24-hour window (a page refresh always
+  // catches the boundary; we don't need a per-second ticker).
+  const NEW_TAG_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const isNewProduct = (createdAt: string | undefined | null) => {
+    if (!createdAt) return false;
+    const t = Date.parse(createdAt);
+    if (!Number.isFinite(t)) return false;
+    return nowMs - t < NEW_TAG_WINDOW_MS;
+  };
 
   // Re-resolve the editing product from the freshly fetched list so the dialog's
   // SizesSection always reflects the latest variants after add/edit/delete.
@@ -1061,7 +1088,17 @@ export default function Inventory() {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-foreground">{product.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{product.name}</span>
+                          {isNewProduct(product.createdAt) && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-500 border border-emerald-500/40"
+                              title="Added in the last 24 hours"
+                            >
+                              New
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">{product.title}</div>
                         {hasVariants && (
                           <div className="mt-1 flex flex-wrap gap-1">

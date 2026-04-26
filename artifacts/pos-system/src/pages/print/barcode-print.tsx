@@ -106,19 +106,21 @@ export default function BarcodePrint() {
           </div>
         )}
         {title && title !== name && (
-          <div style={{ fontSize: titleSize, fontWeight: 700, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.2em", overflow: "hidden", color: "#000", letterSpacing: 0.2 }}>
+          <div style={{ fontSize: titleSize, fontWeight: 800, lineHeight: 1.1, marginBottom: 1, maxHeight: "2.2em", overflow: "hidden", color: "#000", letterSpacing: 0.3 }}>
             {title}
           </div>
         )}
         {hasDiscount && (
           <div
             style={{
-              fontSize: priceSize * 0.78,
-              fontWeight: 500,
-              color: "#444",
+              fontSize: priceSize * 0.82,
+              fontWeight: 700,
+              color: "#000",
               textDecoration: "line-through",
+              textDecorationThickness: "1.5px",
               lineHeight: 1.05,
               marginBottom: 0,
+              letterSpacing: 0.2,
             }}
           >
             Rs. {origNum.toLocaleString("en-PK", { maximumFractionDigits: 2 })}

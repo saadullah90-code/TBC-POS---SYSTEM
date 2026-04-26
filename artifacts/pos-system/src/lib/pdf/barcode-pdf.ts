@@ -173,15 +173,18 @@ function drawLabel(
   }
 
   // ----- Optional pre-discount price (struck through) on its own line -----
+  // Was helvetica-normal at greyscale 80 with a 0.25 strike line — too faint
+  // on cheap thermal stock. Bumped to bold black with a thicker strike so
+  // the customer can clearly see the original ticket beside the sale price.
   const hasDiscount =
     label.originalPrice != null &&
     Number.isFinite(label.originalPrice) &&
     (label.originalPrice as number) > Number(label.price);
   if (hasDiscount) {
-    const origSize = priceSize * 0.78;
-    doc.setFont("helvetica", "normal");
+    const origSize = priceSize * 0.82;
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(origSize);
-    doc.setTextColor(80);
+    doc.setTextColor(0);
     const origText = `Rs. ${Number(label.originalPrice).toLocaleString("en-PK", {
       maximumFractionDigits: 2,
     })}`;
@@ -190,9 +193,8 @@ function drawLabel(
     const origY = y + origSize * 0.32;
     doc.text(origText, cx, origY, { align: "center" });
     // Strike-through line straight across the centre of the text glyphs.
-    doc.setLineWidth(0.25);
+    doc.setLineWidth(0.45);
     doc.line(origX - 0.4, origY - origSize * 0.18, origX + origW + 0.4, origY - origSize * 0.18);
-    doc.setTextColor(0);
     y += lineH(origSize);
   }
 

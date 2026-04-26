@@ -462,18 +462,23 @@ function SizesSection({
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-muted-foreground hover:text-primary"
-                              onClick={() =>
+                              onClick={() => {
+                                // Print one label PER PIECE in stock for this
+                                // size — e.g. size S with stock 2 prints 2
+                                // labels. Falls back to a single label when
+                                // stock is 0 so the user can still grab one
+                                // sticker for a manual restock.
+                                const qty = Math.max(1, Math.floor(v.stock ?? 0));
+                                const labels = Array.from({ length: qty }, () => ({
+                                  name: product!.name,
+                                  title: product!.title,
+                                  price: product!.price,
+                                  barcode: v.barcode,
+                                  size: v.size,
+                                  originalPrice: product!.originalPrice ?? null,
+                                }));
                                 void silentPrintBarcodeLabels(
-                                  [
-                                    {
-                                      name: product!.name,
-                                      title: product!.title,
-                                      price: product!.price,
-                                      barcode: v.barcode,
-                                      size: v.size,
-                                      originalPrice: product!.originalPrice ?? null,
-                                    },
-                                  ],
+                                  labels,
                                   buildBarcodePrintUrl(
                                     product!.name,
                                     product!.title,
@@ -482,10 +487,10 @@ function SizesSection({
                                     v.size,
                                     product!.originalPrice ?? null,
                                   ),
-                                  1,
-                                )
-                              }
-                              title="Print barcode"
+                                  qty,
+                                );
+                              }}
+                              title={`Print ${Math.max(1, Math.floor(v.stock ?? 0))} barcode${Math.max(1, Math.floor(v.stock ?? 0)) === 1 ? "" : "s"} (one per piece in stock)`}
                             >
                               <Printer className="h-3.5 w-3.5" />
                             </Button>
@@ -812,33 +817,71 @@ export default function Inventory() {
       return;
     }
     const ids = Array.from(selectedIds).join(",");
-    const fallbackUrl = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}`;
-    // Build the flat list of labels (one per variant when sized, else one per product)
-    // for the silent path. The fallback URL handles things if no printer is set up.
+    // useStock=1 tells the fallback bulk-print page to repeat each variant by
+    // its actual stock count instead of using the flat copies multiplier — so
+    // sized products always get one label per piece.
+    const fallbackUrl = `/inventory/barcode-print-bulk?ids=${ids}&copies=${copiesPerLabel}&useStock=1`;
+
+    // Build the flat list of labels for the silent path:
+    //   - Sized products: emit ONE label per piece in stock for each size
+    //     (size S with 2 pieces => 2 labels). The "Copies per label" field is
+    //     intentionally ignored for variants — stock is the source of truth,
+    //     matching the Edit Product "Print all labels" button's behaviour.
+    //   - Non-sized products (food, drinks, accessories without variants):
+    //     emit `copiesPerLabel` labels, since there's no per-piece concept.
     const selectedProducts = (products ?? []).filter((p) => selectedIds.has(p.id));
+    let skippedZeroStock = 0;
     const labels: import("@/lib/pdf/barcode-pdf").LabelSpec[] = selectedProducts.flatMap((p) => {
       if (p.variants && p.variants.length > 0) {
-        return p.variants.map((v) => ({
-          name: p.name,
-          title: p.title,
-          price: p.price,
-          barcode: v.barcode,
-          size: v.size as string | null,
-          originalPrice: p.originalPrice ?? null,
-        }));
+        const out: import("@/lib/pdf/barcode-pdf").LabelSpec[] = [];
+        for (const v of p.variants) {
+          const qty = Math.max(0, Math.floor(v.stock ?? 0));
+          if (qty === 0) {
+            skippedZeroStock++;
+            continue;
+          }
+          for (let i = 0; i < qty; i++) {
+            out.push({
+              name: p.name,
+              title: p.title,
+              price: p.price,
+              barcode: v.barcode,
+              size: v.size as string | null,
+              originalPrice: p.originalPrice ?? null,
+            });
+          }
+        }
+        return out;
       }
-      return [
-        {
-          name: p.name,
-          title: p.title,
-          price: p.price,
-          barcode: p.barcode,
-          size: null as string | null,
-          originalPrice: p.originalPrice ?? null,
-        },
-      ];
+      return Array.from({ length: Math.max(1, copiesPerLabel) }, () => ({
+        name: p.name,
+        title: p.title,
+        price: p.price,
+        barcode: p.barcode,
+        size: null as string | null,
+        originalPrice: p.originalPrice ?? null,
+      }));
     });
-    void silentPrintBarcodeLabels(labels, fallbackUrl, copiesPerLabel);
+
+    if (labels.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nothing to print",
+        description:
+          skippedZeroStock > 0
+            ? `All selected sizes have 0 stock — add stock first.`
+            : "No labels to print for the selected products.",
+      });
+      return;
+    }
+    if (skippedZeroStock > 0) {
+      toast({
+        title: `Printing ${labels.length} label${labels.length === 1 ? "" : "s"}`,
+        description: `Skipped ${skippedZeroStock} size${skippedZeroStock === 1 ? "" : "s"} with 0 stock.`,
+      });
+    }
+    // copies=1 here because the array is already expanded to the exact count.
+    void silentPrintBarcodeLabels(labels, fallbackUrl, 1);
   };
 
   const handleDelete = (id: number) => {

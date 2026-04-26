@@ -433,8 +433,15 @@ export default function Discounts() {
     }
   };
 
-  // Print labels for the rows that have a pending discount (in 'discount'
-  // mode) OR for the rows that are already discounted (any mode).
+  // Print labels for the rows currently in the working list:
+  //   - 'discount' mode: print discounted labels (strikethrough original) for
+  //     rows with a pending new price; if the product is already on discount,
+  //     print its existing discounted label.
+  //   - 'edit' mode: print plain labels (no strikethrough) at the new price.
+  //   - 'remove' mode: print plain labels (no strikethrough) at the current
+  //     price — useful right after removing a discount, when the product no
+  //     longer has an originalPrice but the user still wants fresh stickers
+  //     showing the restored price.
   const handlePrintLabels = () => {
     const targets: Array<{
       product: Product;
@@ -457,7 +464,14 @@ export default function Discounts() {
             ? p.originalPrice
             : p.price;
         targets.push({ product: p, effectivePrice: newPrice, originalPrice: orig });
-      } else if (p.originalPrice != null && p.originalPrice > p.price) {
+      } else if (
+        mode !== "remove" &&
+        p.originalPrice != null &&
+        p.originalPrice > p.price
+      ) {
+        // Already-discounted products print their existing strikethrough
+        // label — but NOT in 'remove' mode, where the user's intent is to
+        // produce fresh restored-price stickers without the cut line.
         targets.push({
           product: p,
           effectivePrice: p.price,
@@ -468,6 +482,9 @@ export default function Discounts() {
         const eff =
           Number.isFinite(newPrice) && newPrice > 0 ? newPrice : p.price;
         targets.push({ product: p, effectivePrice: eff, originalPrice: null });
+      } else if (mode === "remove") {
+        // After removing a discount: print plain labels at current price.
+        targets.push({ product: p, effectivePrice: p.price, originalPrice: null });
       }
     }
 
@@ -476,7 +493,9 @@ export default function Discounts() {
         variant: "destructive",
         title: "Nothing to print",
         description:
-          "Add products and set a price (or include already discounted ones).",
+          mode === "remove"
+            ? "Add products to the list first."
+            : "Add products and set a price (or include already discounted ones).",
       });
       return;
     }

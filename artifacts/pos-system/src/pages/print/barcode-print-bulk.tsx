@@ -135,10 +135,37 @@ export default function BarcodePrintBulk() {
     const productMap = new Map(products.map((p) => [p.id, p]));
     const list: LabelSpec[] = [];
 
-    // Per-product (expand variants if any)
+    // Per-product (expand variants if any).
+    //
+    // When useStock=1 is set on the URL, sized products emit ONE label per
+    // piece in stock for each variant (size S with stock 2 → 2 labels) and
+    // sizes with 0 stock are skipped. The flat `copies` multiplier is then
+    // intentionally ignored for variants — stock is the source of truth, the
+    // exact same rule the in-app silent print path and the Edit Product
+    // "Print all labels" button follow.
+    //
+    // Non-sized products (no variants) keep using the `copies` multiplier
+    // since there is no per-piece concept to expand from.
     for (const id of ids) {
       const p = productMap.get(id);
       if (!p) continue;
+      if (useStock && p.variants && p.variants.length > 0) {
+        for (const v of p.variants) {
+          const qty = Math.max(0, Math.floor(v.stock ?? 0));
+          if (qty === 0) continue;
+          const spec: LabelSpec = {
+            key: `v-${v.id}`,
+            name: p.name,
+            title: p.title,
+            price: p.price,
+            originalPrice: p.originalPrice ?? null,
+            barcode: v.barcode,
+            size: v.size,
+          };
+          for (let i = 0; i < qty; i++) list.push(spec);
+        }
+        continue;
+      }
       const specs = specsForProduct(p);
       for (const s of specs) {
         for (let i = 0; i < copiesPerItem; i++) list.push(s);

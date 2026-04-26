@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useLogin, useGetCurrentUser, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -46,6 +46,8 @@ export default function Login() {
     else if (user.role === "inventory") setLocation("/inventory");
     else setLocation("/");
   }, [user, isFetched, loginMutation.isPending, setLocation]);
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -128,7 +130,23 @@ export default function Login() {
                   <FormItem>
                     <FormLabel className="text-white/70 text-xs uppercase tracking-wider">Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="bg-black/50 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-[#f63d25]/60 h-11" />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          {...field}
+                          className="bg-black/50 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-[#f63d25]/60 h-11 pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          tabIndex={-1}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 inline-flex items-center justify-center rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-[#f63d25]/60"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

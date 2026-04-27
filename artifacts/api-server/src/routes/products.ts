@@ -180,11 +180,15 @@ router.get("/products", async (req, res): Promise<void> => {
   }
   if (queryParams.data.search) {
     const searchTerm = `%${queryParams.data.search}%`;
+    // Match by product name/title/main barcode OR by any of its variants'
+    // barcodes — typing a size-specific barcode in the search box should still
+    // surface the parent product (with all sizes) in the inventory list.
     conditions.push(
       or(
         like(productsTable.name, searchTerm),
         like(productsTable.title, searchTerm),
         like(productsTable.barcode, searchTerm),
+        sql`EXISTS (SELECT 1 FROM ${productVariantsTable} WHERE ${productVariantsTable.productId} = ${productsTable.id} AND ${productVariantsTable.barcode} LIKE ${searchTerm})`,
       )!,
     );
   }

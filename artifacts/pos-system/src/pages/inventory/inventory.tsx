@@ -1124,9 +1124,18 @@ export default function Inventory() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <code className="px-2 py-1 bg-secondary rounded text-xs text-muted-foreground font-mono">
-                          {product.barcode}
-                        </code>
+                        {hasVariants ? (
+                          <span
+                            className="inline-flex items-center px-2 py-1 rounded text-[11px] font-medium bg-secondary text-muted-foreground border border-border"
+                            title={`This product has ${variants.length} size${variants.length === 1 ? "" : "s"}, each with its own barcode. Open Edit to view or print size labels.`}
+                          >
+                            Per-size barcodes ({variants.length})
+                          </span>
+                        ) : (
+                          <code className="px-2 py-1 bg-secondary rounded text-xs text-muted-foreground font-mono">
+                            {product.barcode}
+                          </code>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-background/50">
@@ -1168,7 +1177,53 @@ export default function Inventory() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() =>
+                            onClick={() => {
+                              if (hasVariants) {
+                                // Sized product → expand each variant to one
+                                // label per piece in stock. Mirrors the
+                                // "Print all labels" button inside Edit.
+                                let skippedZeroStock = 0;
+                                const labels: import("@/lib/pdf/barcode-pdf").LabelSpec[] = [];
+                                for (const v of variants) {
+                                  const qty = Math.max(0, Math.floor(v.stock ?? 0));
+                                  if (qty === 0) {
+                                    skippedZeroStock++;
+                                    continue;
+                                  }
+                                  for (let i = 0; i < qty; i++) {
+                                    labels.push({
+                                      name: product.name,
+                                      title: product.title,
+                                      price: product.price,
+                                      barcode: v.barcode,
+                                      size: v.size as string | null,
+                                      originalPrice: product.originalPrice ?? null,
+                                    });
+                                  }
+                                }
+                                if (labels.length === 0) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Nothing to print",
+                                    description:
+                                      skippedZeroStock > 0
+                                        ? "All sizes have 0 stock — add stock first."
+                                        : "This product has no sizes with stock.",
+                                  });
+                                  return;
+                                }
+                                if (skippedZeroStock > 0) {
+                                  toast({
+                                    title: `Printing ${labels.length} label${labels.length === 1 ? "" : "s"}`,
+                                    description: `Skipped ${skippedZeroStock} size${skippedZeroStock === 1 ? "" : "s"} with 0 stock.`,
+                                  });
+                                }
+                                const variantIds = variants.map((v) => v.id).join(",");
+                                const fallbackUrl = `/inventory/barcode-print-bulk?variantIds=${variantIds}&useStock=1`;
+                                void silentPrintBarcodeLabels(labels, fallbackUrl, 1);
+                                return;
+                              }
+                              // Non-sized product → single label, current behaviour.
                               void silentPrintBarcodeLabels(
                                 [
                                   {
@@ -1189,11 +1244,11 @@ export default function Inventory() {
                                   product.originalPrice ?? null,
                                 ),
                                 1,
-                              )
-                            }
+                              );
+                            }}
                             title={
                               hasVariants
-                                ? "Print product barcode (open Edit for size labels)"
+                                ? "Print all size labels (one per piece in stock)"
                                 : "Print Barcode"
                             }
                           >
@@ -1419,7 +1474,11 @@ function InventoryCheckDialog({
     if (category !== "all" && p.category !== category) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      const hay = `${p.name} ${p.title} ${p.barcode ?? ""}`.toLowerCase();
+      // Include every variant barcode in the haystack so typing a size-specific
+      // barcode (e.g. the one printed on a clothing tag) still surfaces the
+      // parent product with all its sizes/pieces.
+      const variantBarcodes = (p.variants ?? []).map((v) => v.barcode).join(" ");
+      const hay = `${p.name} ${p.title} ${p.barcode ?? ""} ${variantBarcodes}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;

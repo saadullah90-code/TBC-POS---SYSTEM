@@ -35,7 +35,7 @@ router.get("/license/status", async (_req, res): Promise<void> => {
     res.json({
       status: "no_license",
       active: false,
-      message: "No license configured. Contact the system owner.",
+      message: "No license configured. Contact the headoffice.",
       client: null,
     });
     return;
@@ -46,13 +46,13 @@ router.get("/license/status", async (_req, res): Promise<void> => {
 
   if (!client.isEnabled) {
     status = "disabled";
-    message = "Your subscription has been disabled. Please contact the owner to reactivate.";
+    message = "Your subscription has been disabled. Please contact the headoffice to reactivate.";
   } else if (client.startsAt && client.startsAt > now) {
     status = "not_started";
     message = `Subscription starts on ${client.startsAt.toISOString()}.`;
   } else if (client.expiresAt <= now) {
     status = "expired";
-    message = "Your subscription has expired. Please contact the owner to renew.";
+    message = "Your subscription has expired. Please contact the headoffice to renew.";
   }
 
   res.json({

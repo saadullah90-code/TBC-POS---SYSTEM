@@ -123,7 +123,7 @@ export function LicenseGuard() {
           )}
 
           <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-200/90 leading-relaxed">
-            For renewal or reactivation please contact the system owner. Once
+            For renewal or reactivation please contact the headoffice. Once
             reactivated, this screen will close automatically within a minute.
           </div>
 

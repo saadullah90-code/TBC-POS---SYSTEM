@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -77,6 +77,20 @@ export default function OwnerLogin() {
       <div className="absolute top-[-15%] left-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.22), transparent 70%)", filter: "blur(40px)" }} />
       <div className="absolute bottom-[-15%] right-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.14), transparent 70%)", filter: "blur(60px)" }} />
       <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
+
+      {/* Back to staff/admin login — visible escape hatch from the owner
+          console, since this page has no other navigation. */}
+      <button
+        type="button"
+        onClick={() => setLocation("/login")}
+        aria-label="Back to staff login"
+        title="Back to staff login"
+        data-testid="button-back-to-staff-login"
+        className="absolute top-5 left-5 z-30 inline-flex items-center gap-2 rounded-full bg-white/[0.06] ring-1 ring-white/15 px-3 h-9 text-sm text-white/75 hover:text-white hover:bg-white/12 hover:ring-white/30 shadow-[0_2px_8px_rgba(0,0,0,0.4)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>Back</span>
+      </button>
 
       <Card className="w-full max-w-md glass-card border-0 relative z-10">
         <CardHeader className="space-y-4 pb-6 text-center">

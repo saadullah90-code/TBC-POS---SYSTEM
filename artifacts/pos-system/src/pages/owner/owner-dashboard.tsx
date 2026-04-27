@@ -439,7 +439,7 @@ export default function OwnerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Licensed clients</CardTitle>
+              <CardTitle>Licensed users</CardTitle>
               <CardDescription>
                 Each row is one POS deployment. Toggle the switch to instantly enable or disable it.
               </CardDescription>
@@ -467,7 +467,7 @@ export default function OwnerDashboard() {
                 <table className="w-full text-sm">
                   <thead className="text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
                     <tr>
-                      <th className="text-left font-medium py-3 px-3">Client</th>
+                      <th className="text-left font-medium py-3 px-3">User</th>
                       <th className="text-left font-medium py-3 px-3">License</th>
                       <th className="text-left font-medium py-3 px-3">Window</th>
                       <th className="text-left font-medium py-3 px-3">Status</th>

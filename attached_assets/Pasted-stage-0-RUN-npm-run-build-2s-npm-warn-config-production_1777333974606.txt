@@ -1,0 +1,89 @@
+stage-0
+RUN npm run build
+2s
+npm warn config production Use `--omit=dev` instead.
+npm warn config production Use `--omit=dev` instead.
+npm warn config production Use `--omit=dev` instead.
+> branx-pos@1.0.0 typecheck:libs
+> tsc --build
+error TS2688: Cannot find type definition file for 'node'.
+
+  The file is in the program because:
+    Entry point of type library 'node' specified in compilerOptions
+lib/db/src/index.ts(2,25): error TS2307: Cannot find module 'drizzle-orm/node-postgres' or its corresponding type declarations.
+
+lib/db/src/index.ts(3,16): error TS2307: Cannot find module 'pg' or its corresponding type declarations.
+
+lib/db/src/index.ts(9,3): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+
+lib/db/src/index.ts(9,40): error TS2591: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.
+
+lib/db/src/index.ts(33,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+
+lib/db/src/index.ts(34,3): error TS2584: Cannot find name 'console'. Do you need to change your target library? Try changing the 'lib' compiler option to include 'dom'.
+
+lib/db/src/schema/products.ts(2,36): error TS2307: Cannot find module 'drizzle-zod' or its corresponding type declarations.
+
+lib/db/src/schema/products.ts(3,19): error TS2307: Cannot find module 'zod/v4' or its corresponding type declarations.
+
+lib/db/src/schema/sales.ts(1,83): error TS2307: Cannot find module 'drizzle-orm/pg-core' or its corresponding type declarations.
+
+lib/db/src/schema/sales.ts(2,36): error TS2307: Cannot find module 'drizzle-zod' or its corresponding type declarations.
+
+lib/db/src/schema/sales.ts(3,19): error TS2307: Cannot find module 'zod/v4' or its corresponding type declarations.
+
+lib/db/src/schema/users.ts(3,19): error TS2307: Cannot find module 'zod/v4' or its corresponding type declarations.
+
+lib/db/src/schema/variants.ts(2,36): error TS2307: Cannot find module 'drizzle-zod' or its corresponding type declarations.
+
+lib/api-client-react/src/generated/api.ts(11,8): error TS2307: Cannot find module '@tanstack/react-query' or its corresponding type declarations.
+
+lib/api-client-react/src/generated/api.ts(20,8): error TS2307: Cannot find module '@tanstack/react-query' or its corresponding type declarations.
+
+lib/api-client-react/src/generated/api.ts(109,80): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(184,109): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(327,83): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(404,78): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(853,125): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(926,79): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1002,136): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1072,102): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1145,88): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1221,150): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1440,90): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1592,121): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1672,78): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1747,119): error TS7006: Parameter 'props' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1890,76): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(1974,88): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(2058,82): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(2142,83): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-client-react/src/generated/api.ts(2226,88): error TS7031: Binding element 'signal' implicitly has an 'any' type.
+
+lib/api-zod/src/generated/api.ts(8,22): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+
+Dockerfile:24
+22 |     # build phase
+24 | >>> RUN --mount=type=cache,id=s/12865943-c77d-4eff-983e-03505cbdcdfb-node_modules/cache,target=/app/node_modules/.cache npm run build
+26 |
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm run build" did not complete successfully: exit code: 1
+Error: Docker build failed

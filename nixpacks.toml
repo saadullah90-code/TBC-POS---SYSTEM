@@ -1,0 +1,20 @@
+providers = ["node"]
+
+[variables]
+NPM_CONFIG_PRODUCTION = "false"
+NPM_CONFIG_OMIT = ""
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
+
+[phases.install]
+cmds = [
+  "npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund"
+]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"

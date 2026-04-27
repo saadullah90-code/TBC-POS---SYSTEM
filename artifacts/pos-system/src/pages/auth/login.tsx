@@ -135,9 +135,9 @@ export default function Login() {
         aria-label="Help"
         title="Help"
         data-testid="owner-gate-trigger"
-        className="absolute bottom-4 left-4 h-9 w-9 inline-flex items-center justify-center rounded-full bg-white/[0.04] ring-1 ring-white/10 text-white/45 hover:text-white/90 hover:bg-white/10 hover:ring-white/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 z-20"
+        className="absolute bottom-5 left-5 h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/20 text-white/70 hover:text-white hover:bg-white/15 hover:ring-white/40 shadow-[0_2px_8px_rgba(0,0,0,0.4)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 z-30"
       >
-        <HelpCircle className="h-4 w-4" />
+        <HelpCircle className="h-[18px] w-[18px]" />
       </button>
 
       <Dialog

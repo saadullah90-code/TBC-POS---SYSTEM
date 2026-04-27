@@ -18,6 +18,8 @@ import Invoice from "@/pages/print/invoice";
 import Receipt from "@/pages/print/receipt";
 import BarcodePrint from "@/pages/print/barcode-print";
 import BarcodePrintBulk from "@/pages/print/barcode-print-bulk";
+import OwnerLogin from "@/pages/owner/owner-login";
+import OwnerDashboard from "@/pages/owner/owner-dashboard";
 
 import { AuthWrapper } from "@/components/layout/auth-wrapper";
 import { Layout } from "@/components/layout/layout";
@@ -37,6 +39,10 @@ function Router() {
       {/* Public / standalone routes */}
       <Route path="/login" component={Login} />
       <Route path="/customer-display" component={CustomerDisplay} />
+
+      {/* Owner / super-admin console (separate auth, no shared layout) */}
+      <Route path="/owner/login" component={OwnerLogin} />
+      <Route path="/owner" component={OwnerDashboard} />
 
       {/* Print routes (no chrome) */}
       <Route path="/invoice/:id" component={Invoice} />

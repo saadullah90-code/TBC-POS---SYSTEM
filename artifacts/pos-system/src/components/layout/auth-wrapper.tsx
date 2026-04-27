@@ -2,6 +2,7 @@ import { useGetCurrentUser } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { LicenseGuard } from "@/components/license-guard";
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -51,5 +52,10 @@ export function AuthWrapper({ children, allowedRoles }: AuthWrapperProps) {
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <LicenseGuard />
+    </>
+  );
 }

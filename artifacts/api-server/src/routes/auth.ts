@@ -46,9 +46,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {
-  req.session.destroy(() => {
-    res.json({ message: "Logged out successfully" });
-  });
+  // Only clear the staff `userId` so a super-admin (`ownerId`) signed in
+  // on the same browser is NOT also kicked out. A full `req.session.destroy`
+  // would wipe both fields and surprise the owner mid-action.
+  req.session.userId = undefined;
+  res.json({ message: "Logged out successfully" });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {

@@ -17,6 +17,25 @@ Production-ready POS + Inventory + Barcode label system for a single-store bouti
 - Admin: `admin@store.com` / `admin123`
 - Cashier: `cashier@store.com` / `cashier123`
 - Inventory: `inventory@store.com` / `inventory123`
+- Store-admin override (active in Supabase): `tbcpos@store.com` / `pakistan@125`
+
+## SaaS Owner Console (super-admin)
+A separate "owner" panel sits inside the same `pos-system` artifact at `/owner/*`,
+sharing the same Express api-server + Supabase DB. Used by the platform owner
+to license individual POS deployments.
+
+- Owner login: `/owner/login` → `/owner` (clients dashboard)
+- Owner credentials (seeded in Supabase): `branxofficial90@gmail.com` / `SecureP@55`
+- Tables: `owner_users`, `licensed_clients` (defined in `lib/db/src/schema/owner.ts`,
+  matching pre-existing Supabase columns; both have `serial` PKs — DO NOT change to varchar)
+- License rules (computed in `routes/license.ts` and mirrored in `pages/owner/owner-dashboard.tsx`):
+  - `active` = `is_enabled` AND (`starts_at` IS NULL OR `starts_at` ≤ NOW) AND `expires_at` > NOW
+  - else `disabled` / `not_started` / `expired`
+- POS frontend polls `GET /api/license/status` every 60s (component `LicenseGuard`,
+  mounted inside `AuthWrapper`). When inactive → blocking modal on admin / inventory
+  / cashier screens with sign-out only.
+- Owner session uses the SAME express-session store but a different field
+  (`req.session.ownerId` vs `req.session.userId`), so the two logins do not interfere.
 
 ## Environment
 ```

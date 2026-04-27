@@ -14,10 +14,11 @@ Production-ready POS + Inventory + Barcode label system for a single-store bouti
 - **Silent printing**: QZ Tray over WebSocket (`@/lib/qz-bridge.ts`)
 
 ## Default Users (seeded)
-- Admin: `admin@store.com` / `admin123`
-- Cashier: `cashier@store.com` / `cashier123`
-- Inventory: `inventory@store.com` / `inventory123`
-- Store-admin override (active in Supabase): `tbcpos@store.com` / `pakistan@125`
+- Admin:    `admin@store.com`     / `admin123`     (demo seed only — rotate before going live)
+- Cashier:  `cashier@store.com`   / `cashier123`   (demo seed only — rotate before going live)
+- Inventory:`inventory@store.com` / `inventory123` (demo seed only — rotate before going live)
+- Real production admin credentials are stored in Supabase only and are
+  NOT documented in this file. Ask the project owner if you need them.
 
 ## SaaS Owner Console (super-admin)
 A separate "owner" panel sits inside the same `pos-system` artifact, sharing
@@ -34,7 +35,16 @@ license individual POS deployments.
   - Frontend: `VITE_OWNER_PORTAL_SLUG=...`
 - Source of truth: `artifacts/pos-system/src/config/owner-portal.ts` (frontend)
   and `artifacts/api-server/src/routes/index.ts` (backend mount).
-- Owner credentials (seeded in Supabase): `branxofficial90@gmail.com` / `SecureP@55`
+- **Hidden owner-gate on the staff login page**: a low-contrast `?` icon at
+  the bottom-left of `/login` (`pages/auth/login.tsx`) opens a tiny
+  "Who are you?" dialog. Typing the correct passphrase and pressing Enter
+  navigates to `/${OWNER_PORTAL_SLUG}/login`. Any other input closes the
+  dialog silently (no error feedback) so the feature looks like a stray
+  help button. The passphrase string lives ONLY in source as the constant
+  `OWNER_GATE_PASSPHRASE` at the top of that file (kept out of this doc
+  on purpose; treat it as UX obscurity, not a security boundary).
+- Owner credentials live in Supabase (`owner_users` table) and are NOT
+  documented here. Ask the project owner if you need them.
 - Tables: `owner_users`, `licensed_clients` (defined in `lib/db/src/schema/owner.ts`,
   matching pre-existing Supabase columns; both have `serial` PKs — DO NOT change to varchar)
 - License rules (computed in `routes/license.ts` and mirrored in `pages/owner/owner-dashboard.tsx`):
@@ -68,7 +78,17 @@ SESSION_SECRET=<random 32+ char string>
 OWNER_PORTAL_SLUG=<unguessable-slug>
 VITE_OWNER_PORTAL_SLUG=<same-unguessable-slug>
 ```
-On Replit these are set via Secrets. On a local Windows machine they live in `.env` at project root (already gitignored).
+On Replit these are set via Secrets. On a local Windows machine they live in `.env` at project root (already gitignored). See `.env.example` at the project root for a documented template.
+
+### Railway deploy checklist
+1. In the Railway project → **Variables**, set ALL of: `SUPABASE_DATABASE_URL` (or `DATABASE_URL`), `SESSION_SECRET`, and the matching pair `OWNER_PORTAL_SLUG` + `VITE_OWNER_PORTAL_SLUG`.
+2. Trigger redeploy after pushing the latest commit. Until that redeploy
+   completes, the production app will still be on the old build where the
+   owner panel was mounted at `/api/owner/*` — that is the source of the
+   `Cannot POST /api/${OWNER_PORTAL_SLUG}/auth/login` error in the screenshot.
+3. After redeploy, test: open `/login`, click the hidden `?` at bottom-left,
+   type the owner-gate passphrase (see `OWNER_GATE_PASSPHRASE` in
+   `pages/auth/login.tsx`), press Enter — Owner Console login should appear.
 
 ## Key Commands
 - `npm run dev` — runs API + Web together (concurrently)

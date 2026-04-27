@@ -17,8 +17,25 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Eye, EyeOff, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ownerPath } from "@/config/owner-portal";
+
+// Secret passphrase that, when typed into the hidden bottom-left "?" prompt,
+// reveals the route to the super-admin Owner Console. Kept here (not on the
+// server) intentionally: the Owner Console URL is already secured by the
+// unguessable `OWNER_PORTAL_SLUG`, by per-IP rate limiting on the login,
+// and by the owner-credentials check itself. This passphrase is just a
+// last layer of UI obscurity so a curious staff member can't stumble on
+// the link.
+const OWNER_GATE_PASSPHRASE = "saadthorodin";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -48,6 +65,21 @@ export default function Login() {
   }, [user, isFetched, loginMutation.isPending, setLocation]);
 
   const [showPassword, setShowPassword] = useState(false);
+
+  // Hidden owner-gate state: a near-invisible "?" icon at the bottom-left
+  // opens a tiny "Who are you?" dialog. Typing the secret passphrase and
+  // pressing Enter navigates to the Owner Console login. Wrong inputs
+  // close the dialog silently — we never tell the user they were wrong,
+  // so the feature looks like a stray help button to anyone who pokes it.
+  const [gateOpen, setGateOpen] = useState(false);
+  const [gateValue, setGateValue] = useState("");
+
+  function submitOwnerGate() {
+    const ok = gateValue.trim().toLowerCase() === OWNER_GATE_PASSPHRASE;
+    setGateOpen(false);
+    setGateValue("");
+    if (ok) setLocation(ownerPath("/login"));
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -93,6 +125,58 @@ export default function Login() {
       <div className="absolute top-[-15%] left-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.22), transparent 70%)", filter: "blur(40px)" }} />
       <div className="absolute bottom-[-15%] right-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.14), transparent 70%)", filter: "blur(60px)" }} />
       <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
+
+      {/* Hidden owner-gate trigger — bottom-left, intentionally low contrast
+          so it looks like a stray help icon. */}
+      <button
+        type="button"
+        onClick={() => setGateOpen(true)}
+        aria-label="Help"
+        title="Help"
+        data-testid="owner-gate-trigger"
+        className="absolute bottom-3 left-3 h-7 w-7 inline-flex items-center justify-center rounded-full text-white/15 hover:text-white/40 hover:bg-white/5 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20 z-20"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+      </button>
+
+      <Dialog
+        open={gateOpen}
+        onOpenChange={(open) => {
+          setGateOpen(open);
+          if (!open) setGateValue("");
+        }}
+      >
+        <DialogContent className="sm:max-w-sm" data-testid="owner-gate-dialog">
+          <DialogHeader>
+            <DialogTitle>Who are you?</DialogTitle>
+            <DialogDescription>
+              Enter the access phrase to continue.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitOwnerGate();
+            }}
+            className="space-y-3"
+          >
+            <Input
+              autoFocus
+              type="password"
+              value={gateValue}
+              onChange={(e) => setGateValue(e.target.value)}
+              placeholder=""
+              autoComplete="off"
+              data-testid="owner-gate-input"
+              className="bg-black/50 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-[#f63d25]/60 h-11"
+            />
+            {/* Hidden submit so pressing Enter in the input triggers it. */}
+            <button type="submit" className="sr-only" aria-hidden="true">
+              Continue
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Card className="w-full max-w-md glass-card border-0 relative z-10">
         <CardHeader className="space-y-4 pb-6 text-center">

@@ -7,8 +7,10 @@ import {
   GetTopProductsQueryParams,
   GetLowStockProductsQueryParams,
 } from "@workspace/api-zod";
+import { requireSession } from "../lib/require-session";
 
 const router: IRouter = Router();
+router.use(requireSession);
 
 function getPeriodStart(period?: string): Date {
   const now = new Date();

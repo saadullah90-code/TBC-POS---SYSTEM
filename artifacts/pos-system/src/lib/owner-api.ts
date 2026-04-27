@@ -5,10 +5,15 @@
  *
  * All requests use `credentials: "include"` so the express-session cookie is
  * sent, and they go through the same `/api` proxy as the rest of the POS.
+ *
+ * The owner endpoints sit under a hidden, env-driven URL slug
+ * (see `@/config/owner-portal`) so the panel itself is not discoverable.
  */
+import { OWNER_PORTAL_SLUG } from "@/config/owner-portal";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const API = `${BASE}/api`;
+const OWNER = `/${OWNER_PORTAL_SLUG}`;
 
 async function request<T>(
   method: "GET" | "POST" | "PATCH" | "DELETE",
@@ -67,9 +72,15 @@ export interface LicenseStatus {
   status: LicenseStatusValue;
   active: boolean;
   message: string;
+  /**
+   * Client snapshot exposed by the public `/api/license/status` endpoint.
+   * `contact` is deliberately NOT exposed here — it would be PII visible
+   * to anonymous callers. The full record (with contact) lives only on
+   * the owner-only `/api/${OWNER_PORTAL_SLUG}/clients` listing as
+   * `LicensedClient`.
+   */
   client: {
     name: string;
-    contact: string | null;
     startsAt: string | null;
     expiresAt: string;
   } | null;
@@ -78,14 +89,14 @@ export interface LicenseStatus {
 // ---------- Owner auth ----------
 export const ownerApi = {
   login: (email: string, password: string) =>
-    request<{ owner: OwnerUser; message: string }>("POST", "/owner/auth/login", { email, password }),
-  me: () => request<{ owner: OwnerUser }>("GET", "/owner/auth/me"),
-  logout: () => request<{ message: string }>("POST", "/owner/auth/logout"),
+    request<{ owner: OwnerUser; message: string }>("POST", `${OWNER}/auth/login`, { email, password }),
+  me: () => request<{ owner: OwnerUser }>("GET", `${OWNER}/auth/me`),
+  logout: () => request<{ message: string }>("POST", `${OWNER}/auth/logout`),
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<{ message: string }>("POST", "/owner/auth/change-password", { currentPassword, newPassword }),
+    request<{ message: string }>("POST", `${OWNER}/auth/change-password`, { currentPassword, newPassword }),
 
   // Clients
-  listClients: () => request<LicensedClient[]>("GET", "/owner/clients"),
+  listClients: () => request<LicensedClient[]>("GET", `${OWNER}/clients`),
   createClient: (data: {
     name: string;
     contact?: string | null;
@@ -94,7 +105,7 @@ export const ownerApi = {
     startsAt?: string | null;
     expiresAt: string;
     isEnabled?: boolean;
-  }) => request<LicensedClient>("POST", "/owner/clients", data),
+  }) => request<LicensedClient>("POST", `${OWNER}/clients`, data),
   updateClient: (
     id: number,
     data: Partial<{
@@ -105,8 +116,8 @@ export const ownerApi = {
       expiresAt: string;
       isEnabled: boolean;
     }>,
-  ) => request<LicensedClient>("PATCH", `/owner/clients/${id}`, data),
-  deleteClient: (id: number) => request<void>("DELETE", `/owner/clients/${id}`),
+  ) => request<LicensedClient>("PATCH", `${OWNER}/clients/${id}`, data),
+  deleteClient: (id: number) => request<void>("DELETE", `${OWNER}/clients/${id}`),
 };
 
 // ---------- Public license status ----------

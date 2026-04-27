@@ -103,12 +103,6 @@ export function LicenseGuard() {
                 <span className="text-white/50">Account</span>
                 <span className="font-medium text-right">{data.client.name}</span>
               </div>
-              {data.client.contact && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/50">Owner contact</span>
-                  <span className="font-medium text-right">{data.client.contact}</span>
-                </div>
-              )}
               {data.status === "not_started" && (
                 <div className="flex justify-between gap-4">
                   <span className="text-white/50">Starts</span>

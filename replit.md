@@ -20,11 +20,20 @@ Production-ready POS + Inventory + Barcode label system for a single-store bouti
 - Store-admin override (active in Supabase): `tbcpos@store.com` / `pakistan@125`
 
 ## SaaS Owner Console (super-admin)
-A separate "owner" panel sits inside the same `pos-system` artifact at `/owner/*`,
-sharing the same Express api-server + Supabase DB. Used by the platform owner
-to license individual POS deployments.
+A separate "owner" panel sits inside the same `pos-system` artifact, sharing
+the same Express api-server + Supabase DB. Used by the platform owner to
+license individual POS deployments.
 
-- Owner login: `/owner/login` → `/owner` (clients dashboard)
+- **Hidden URL slug** — the owner panel is NOT mounted at `/owner` (visiting
+  `/owner` returns 404). Real path is `/${OWNER_PORTAL_SLUG}/login` →
+  `/${OWNER_PORTAL_SLUG}` (clients dashboard). API mirrors at
+  `/api/${OWNER_PORTAL_SLUG}/*`.
+- Default slug (dev): `brx-control-x9k2p7m4`
+- **In production** override via env vars (must match):
+  - Backend:  `OWNER_PORTAL_SLUG=...`
+  - Frontend: `VITE_OWNER_PORTAL_SLUG=...`
+- Source of truth: `artifacts/pos-system/src/config/owner-portal.ts` (frontend)
+  and `artifacts/api-server/src/routes/index.ts` (backend mount).
 - Owner credentials (seeded in Supabase): `branxofficial90@gmail.com` / `SecureP@55`
 - Tables: `owner_users`, `licensed_clients` (defined in `lib/db/src/schema/owner.ts`,
   matching pre-existing Supabase columns; both have `serial` PKs — DO NOT change to varchar)
@@ -37,10 +46,27 @@ to license individual POS deployments.
 - Owner session uses the SAME express-session store but a different field
   (`req.session.ownerId` vs `req.session.userId`), so the two logins do not interfere.
 
+## Security middleware
+- `artifacts/api-server/src/lib/require-session.ts` — gate applied via
+  `router.use(requireSession)` to **users**, **products**, **sales**, and
+  **dashboard** routers. Without a valid `req.session.userId` cookie these
+  return 401 (reads + writes both protected). Public routes that bypass it:
+  `/api/healthz`, `/api/auth/login`, `/api/license/status`, the hidden owner
+  endpoints (which use their own `requireOwner`).
+- `artifacts/api-server/src/lib/rate-limit.ts` — per-IP login throttle
+  (5 fails / 15 min lockout, separate buckets for `staff` and `owner` so
+  one cannot lock out the other). Applied to `POST /api/auth/login` and
+  `POST /api/${OWNER_PORTAL_SLUG}/auth/login`. Returns 429 with retry hint.
+
 ## Environment
 ```
 SUPABASE_DATABASE_URL=postgresql://...   # Supabase pooler URL
 SESSION_SECRET=<random 32+ char string>
+
+# OPTIONAL — override the hidden owner-panel URL. Defaults to
+# `brx-control-x9k2p7m4` if unset. Backend + frontend MUST agree.
+OWNER_PORTAL_SLUG=<unguessable-slug>
+VITE_OWNER_PORTAL_SLUG=<same-unguessable-slug>
 ```
 On Replit these are set via Secrets. On a local Windows machine they live in `.env` at project root (already gitignored).
 

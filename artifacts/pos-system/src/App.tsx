@@ -23,6 +23,7 @@ import OwnerDashboard from "@/pages/owner/owner-dashboard";
 
 import { AuthWrapper } from "@/components/layout/auth-wrapper";
 import { Layout } from "@/components/layout/layout";
+import { OWNER_PORTAL_SLUG } from "@/config/owner-portal";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,9 +41,11 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/customer-display" component={CustomerDisplay} />
 
-      {/* Owner / super-admin console (separate auth, no shared layout) */}
-      <Route path="/owner/login" component={OwnerLogin} />
-      <Route path="/owner" component={OwnerDashboard} />
+      {/* Owner / super-admin console — mounted under a hidden, env-driven
+          slug so the URL is unguessable. Anyone visiting the literal
+          `/owner` path will fall through to the 404 NotFound at the bottom. */}
+      <Route path={`/${OWNER_PORTAL_SLUG}/login`} component={OwnerLogin} />
+      <Route path={`/${OWNER_PORTAL_SLUG}`} component={OwnerDashboard} />
 
       {/* Print routes (no chrome) */}
       <Route path="/invoice/:id" component={Invoice} />

@@ -9,8 +9,10 @@ import {
   DeleteUserParams,
 } from "@workspace/api-zod";
 import { hashPassword } from "./auth";
+import { requireSession } from "../lib/require-session";
 
 const router: IRouter = Router();
+router.use(requireSession);
 
 function formatUser(user: typeof usersTable.$inferSelect) {
   return {

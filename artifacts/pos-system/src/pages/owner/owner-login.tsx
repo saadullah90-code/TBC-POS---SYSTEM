@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { ownerApi } from "@/lib/owner-api";
+import { ownerPath } from "@/config/owner-portal";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -36,7 +37,7 @@ export default function OwnerLogin() {
     let cancelled = false;
     ownerApi
       .me()
-      .then(() => { if (!cancelled) setLocation("/owner"); })
+      .then(() => { if (!cancelled) setLocation(ownerPath()); })
       .catch(() => { /* not logged in — stay */ })
       .finally(() => { if (!cancelled) setCheckingSession(false); });
     return () => { cancelled = true; };
@@ -51,7 +52,7 @@ export default function OwnerLogin() {
     setSubmitting(true);
     try {
       await ownerApi.login(values.email, values.password);
-      setLocation("/owner");
+      setLocation(ownerPath());
     } catch (err: any) {
       toast({
         variant: "destructive",

@@ -16,6 +16,11 @@ const router: IRouter = Router();
  *   - "no_license"   → no license row exists at all (fresh install)
  *
  * We always return 200 so the frontend can read the body.
+ *
+ * IMPORTANT: this endpoint is anonymous (no auth). It MUST NOT include the
+ * licensed-client `contact` field or any other PII — that data lives in the
+ * owner-only `/api/${OWNER_PORTAL_SLUG}/clients` listing. We expose only
+ * the bits the modal strictly needs to render.
  */
 router.get("/license/status", async (_req, res): Promise<void> => {
   const [client] = await db
@@ -56,7 +61,7 @@ router.get("/license/status", async (_req, res): Promise<void> => {
     message,
     client: {
       name: client.name,
-      contact: client.contact,
+      // `contact` is intentionally OMITTED — see header comment.
       startsAt: client.startsAt ? client.startsAt.toISOString() : null,
       expiresAt: client.expiresAt.toISOString(),
     },

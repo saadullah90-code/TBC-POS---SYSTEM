@@ -6,6 +6,7 @@ import {
   type LicensedClient,
   type OwnerUser,
 } from "@/lib/owner-api";
+import { ownerPath } from "@/config/owner-portal";
 import {
   ShieldCheck,
   LogOut,
@@ -336,7 +337,7 @@ export default function OwnerDashboard() {
     ownerApi
       .me()
       .then((r) => { if (!cancelled) setOwner(r.owner); })
-      .catch(() => { if (!cancelled) setLocation("/owner/login"); })
+      .catch(() => { if (!cancelled) setLocation(ownerPath("/login")); })
       .finally(() => { if (!cancelled) setAuthChecked(true); });
     return () => { cancelled = true; };
   }, [setLocation]);
@@ -375,7 +376,7 @@ export default function OwnerDashboard() {
     try {
       await ownerApi.logout();
     } catch { /* ignore */ }
-    setLocation("/owner/login");
+    setLocation(ownerPath("/login"));
   };
 
   const stats = useMemo(() => {

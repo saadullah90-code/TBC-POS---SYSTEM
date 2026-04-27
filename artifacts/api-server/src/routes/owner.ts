@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db, ownerUsersTable, licensedClientsTable } from "@workspace/db";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { invalidateLicenseCache } from "../lib/license-gate";
+import { loginRateLimit, recordLoginFail, recordLoginSuccess } from "../lib/rate-limit";
+import { regenerateSession } from "../lib/regenerate-session";
 
 declare module "express-session" {
   interface SessionData {
@@ -76,8 +78,12 @@ function generateLicenseKey(): string {
   return `BRX-${part()}-${part()}-${part()}`;
 }
 
+// NOTE: this router is mounted by `routes/index.ts` under a hidden, env-driven
+// secret slug (`OWNER_PORTAL_SLUG`) so the URL itself is unguessable. The
+// paths below are RELATIVE to that mount point.
+
 // ---------- Auth ----------
-router.post("/owner/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", loginRateLimit("owner"), async (req, res): Promise<void> => {
   const parsed = OwnerLoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -86,20 +92,30 @@ router.post("/owner/auth/login", async (req, res): Promise<void> => {
   const { email, password } = parsed.data;
   const [owner] = await db.select().from(ownerUsersTable).where(eq(ownerUsersTable.email, email));
   if (!owner || !verifyPassword(password, owner.passwordHash)) {
+    recordLoginFail(req, "owner");
     res.status(401).json({ error: "Invalid email or password" });
+    return;
+  }
+  recordLoginSuccess(req, "owner");
+  // Defeat session fixation by issuing a fresh session id before we attach
+  // `ownerId`. Same pattern as the staff login.
+  try {
+    await regenerateSession(req);
+  } catch {
+    res.status(500).json({ error: "Could not establish session" });
     return;
   }
   req.session.ownerId = owner.id;
   res.json({ owner: formatOwner(owner), message: "Login successful" });
 });
 
-router.post("/owner/auth/logout", async (req, res): Promise<void> => {
+router.post("/auth/logout", async (req, res): Promise<void> => {
   // Only clear ownerId so a POS user logged in on the same browser is unaffected
   req.session.ownerId = undefined;
   res.json({ message: "Logged out" });
 });
 
-router.get("/owner/auth/me", async (req, res): Promise<void> => {
+router.get("/auth/me", async (req, res): Promise<void> => {
   if (!req.session.ownerId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -113,7 +129,7 @@ router.get("/owner/auth/me", async (req, res): Promise<void> => {
   res.json({ owner: formatOwner(owner) });
 });
 
-router.post("/owner/auth/change-password", requireOwner, async (req, res): Promise<void> => {
+router.post("/auth/change-password", requireOwner, async (req, res): Promise<void> => {
   const schema = z.object({
     currentPassword: z.string().min(1),
     newPassword: z.string().min(6),
@@ -137,12 +153,12 @@ router.post("/owner/auth/change-password", requireOwner, async (req, res): Promi
 });
 
 // ---------- Clients CRUD ----------
-router.get("/owner/clients", requireOwner, async (_req, res): Promise<void> => {
+router.get("/clients", requireOwner, async (_req, res): Promise<void> => {
   const rows = await db.select().from(licensedClientsTable).orderBy(licensedClientsTable.id);
   res.json(rows.map(formatClient));
 });
 
-router.post("/owner/clients", requireOwner, async (req, res): Promise<void> => {
+router.post("/clients", requireOwner, async (req, res): Promise<void> => {
   const parsed = CreateClientBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -165,7 +181,7 @@ router.post("/owner/clients", requireOwner, async (req, res): Promise<void> => {
   res.status(201).json(formatClient(row));
 });
 
-router.patch("/owner/clients/:id", requireOwner, async (req, res): Promise<void> => {
+router.patch("/clients/:id", requireOwner, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -198,7 +214,7 @@ router.patch("/owner/clients/:id", requireOwner, async (req, res): Promise<void>
   res.json(formatClient(row));
 });
 
-router.delete("/owner/clients/:id", requireOwner, async (req, res): Promise<void> => {
+router.delete("/clients/:id", requireOwner, async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Invalid id" });

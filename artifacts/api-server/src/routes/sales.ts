@@ -6,8 +6,10 @@ import {
   GetSaleParams,
   ListSalesQueryParams,
 } from "@workspace/api-zod";
+import { requireSession } from "../lib/require-session";
 
 const router: IRouter = Router();
+router.use(requireSession);
 
 function formatSale(sale: typeof salesTable.$inferSelect, cashierName?: string | null) {
   return {

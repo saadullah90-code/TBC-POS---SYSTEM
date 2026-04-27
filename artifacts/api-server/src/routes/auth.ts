@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { LoginBody } from "@workspace/api-zod";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { loginRateLimit, recordLoginFail, recordLoginSuccess } from "../lib/rate-limit";
+import { regenerateSession } from "../lib/regenerate-session";
 
 declare module "express-session" {
   interface SessionData {
@@ -12,7 +14,7 @@ declare module "express-session" {
 
 const router: IRouter = Router();
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", loginRateLimit("staff"), async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -27,10 +29,21 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .where(eq(usersTable.email, email));
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
+    recordLoginFail(req, "staff");
     res.status(401).json({ error: "Invalid email or password" });
     return;
   }
 
+  recordLoginSuccess(req, "staff");
+  // Rotate the session id BEFORE we attach `userId` so any pre-login
+  // session a malicious actor may have planted in the browser becomes
+  // useless (session-fixation defense).
+  try {
+    await regenerateSession(req);
+  } catch {
+    res.status(500).json({ error: "Could not establish session" });
+    return;
+  }
   req.session.userId = user.id;
 
   res.json({

@@ -126,16 +126,18 @@ export default function Login() {
       <div className="absolute bottom-[-15%] right-[-10%] w-[55%] h-[55%] rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(246,61,37,0.14), transparent 70%)", filter: "blur(60px)" }} />
       <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
 
-      {/* Hidden owner-gate trigger — bottom-left. Subtle on purpose, but
-          visible enough that someone who knows about it can find it. Looks
-          like a stray help icon so a curious staff member dismisses it. */}
+      {/* Hidden owner-gate trigger — bottom-left. Uses `fixed` so it can
+          never be clipped by an ancestor's overflow rules, and sits at z-50
+          so no decorative layer can ever sit on top of it. Subtle but
+          reliably visible against the dark login background. Looks like a
+          stray help icon so a curious staff member dismisses it. */}
       <button
         type="button"
         onClick={() => setGateOpen(true)}
         aria-label="Help"
         title="Help"
         data-testid="owner-gate-trigger"
-        className="absolute bottom-4 left-4 h-9 w-9 inline-flex items-center justify-center rounded-full bg-white/[0.05] ring-1 ring-white/15 text-white/50 hover:text-white/90 hover:bg-white/12 hover:ring-white/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 z-20"
+        className="fixed bottom-4 left-4 h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/10 ring-1 ring-white/25 text-white/65 hover:text-white hover:bg-white/15 hover:ring-white/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 z-50 shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
       >
         <HelpCircle className="h-4 w-4" />
       </button>

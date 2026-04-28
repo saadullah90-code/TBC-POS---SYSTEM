@@ -625,8 +625,8 @@ function SizesPopover({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[420px] p-4" align="start">
-        <div className="space-y-4">
+      <PopoverContent className="w-[min(420px,calc(100vw-2rem))] p-0" align="start">
+        <div className="max-h-[min(520px,calc(100vh-10rem))] overflow-y-auto p-4 space-y-4">
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
               Clothing (T-shirts, shirts, dresses)

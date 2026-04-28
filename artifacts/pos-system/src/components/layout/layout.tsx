@@ -86,7 +86,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="w-72 flex flex-col no-print relative sidebar-surface">
+      <aside className="w-56 lg:w-60 xl:w-72 shrink-0 flex flex-col no-print relative sidebar-surface">
         {/* Brand */}
         <div className="px-6 pt-6 pb-5">
           <div className="brand-card flex items-center gap-3 px-4 py-3 rounded-2xl">

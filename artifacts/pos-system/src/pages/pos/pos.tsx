@@ -293,7 +293,7 @@ export default function Pos() {
         </div>
       </div>
 
-      <div className="w-[450px] bg-card border-l border-border flex flex-col shadow-xl z-10 relative">
+      <div className="w-[300px] lg:w-[360px] xl:w-[420px] 2xl:w-[450px] shrink-0 bg-card border-l border-border flex flex-col shadow-xl z-10 relative">
         <div className="h-16 flex items-center px-6 border-b border-border bg-card">
           <ShoppingCart className="h-5 w-5 mr-2 text-primary" />
           <h2 className="text-xl font-bold tracking-tight">Current Sale</h2>
